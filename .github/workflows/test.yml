@@ -2,9 +2,9 @@ name: Unit tests
 
 on:
   push:
-    branches: [ master ]
+    branches: [master]
   pull_request:
-    branches: [ master ]
+    branches: [master]
 
 jobs:
   build:
@@ -13,9 +13,9 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        os: ['ubuntu-latest', 'windows-latest']
-        php: ['7.4', '8.0', '8.1']
-        stability: ['prefer-lowest', 'prefer-stable']
+        os: ["ubuntu-latest", "windows-latest"]
+        php: ["7.4", "8.0", "8.1"]
+        stability: ["prefer-lowest", "prefer-stable"]
 
     steps:
       - name: Checkout
@@ -41,7 +41,7 @@ jobs:
 
       - name: Cache Composer packages
         id: composer-cache
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: vendor
           key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }}
@@ -72,4 +72,3 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           parallel-finished: true
-

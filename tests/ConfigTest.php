@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Navindex\SimpleConfig\Tests;
+namespace BaliNomad\SimpleConfig\Tests;
 
 use ArrayIterator;
 use Iterator;
-use Navindex\SimpleConfig\Config;
+use BaliNomad\SimpleConfig\Config;
 use PHPUnit\Framework\TestCase;
 
 /**
- * @covers \Navindex\SimpleConfig\Config
+ * @covers \BaliNomad\SimpleConfig\Config
  */
 final class ConfigTest extends TestCase
 {
@@ -117,9 +117,9 @@ final class ConfigTest extends TestCase
     /**
      * @dataProvider providerMerge
      *
-     * @param  null|mixed[]                               $config
-     * @param  null|mixed[]|\Navindex\SimpleConfig\Config $merge
-     * @param  mixed[]                                    $expected
+     * @param  null|mixed[]                                $config
+     * @param  null|mixed[]|\BaliNomad\SimpleConfig\Config $merge
+     * @param  mixed[]                                     $expected
      * @return void
      */
     public function testMerge(?array $config, $merge, array $expected)
@@ -131,9 +131,9 @@ final class ConfigTest extends TestCase
     /**
      * @dataProvider providerMerge
      *
-     * @param  null|mixed[]                               $config
-     * @param  null|mixed[]|\Navindex\SimpleConfig\Config $merge
-     * @param  mixed[]                                    $expected
+     * @param  null|mixed[]                                $config
+     * @param  null|mixed[]|\BaliNomad\SimpleConfig\Config $merge
+     * @param  mixed[]                                     $expected
      * @return void
      */
     public function testMergeReplace(?array $config, $merge, array $expected)

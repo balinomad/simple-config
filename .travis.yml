@@ -17,5 +17,3 @@ before_script:
 
 after_success:
   - travis_retry php vendor/bin/php-coveralls --verbose --coverage-clover build/logs/clover.xml
-
-sudo: false

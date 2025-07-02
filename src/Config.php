@@ -1,6 +1,6 @@
 <?php
 
-namespace Navindex\SimpleConfig;
+namespace BaliNomad\SimpleConfig;
 
 use ArrayAccess;
 use ArrayIterator;

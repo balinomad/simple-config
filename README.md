@@ -1,9 +1,9 @@
-# Simple config [![Latest Version](https://img.shields.io/github/release/navindex/simple-config?sort=semver&label=version)](https://raw.githubusercontent.com/navindex/simple-config/master/CHANGELOG.md)
+# Simple config [![Latest Version](https://img.shields.io/github/release/balinomad/simple-config?sort=semver&label=version)](https://raw.githubusercontent.com/balinomad/simple-config/master/CHANGELOG.md)
 
-[![Unit tests](https://github.com/navindex/simple-config/actions/workflows/test.yml/badge.svg?branch=master)](https://github.com/navindex/simple-config/actions/workflows/test.yml)
-[![Code analysis](https://github.com/navindex/simple-config/actions/workflows/analysis.yml/badge.svg)](https://github.com/navindex/simple-config/actions/workflows/analysis.yml)
-[![Build Status](https://app.travis-ci.com/navindex/simple-config.svg?branch=master)](https://app.travis-ci.com/navindex/simple-config)
-[![Coverage Status](https://coveralls.io/repos/github/navindex/simple-config/badge.svg?branch=master)](https://coveralls.io/github/navindex/simple-config?branch=master)
+[![Unit tests](https://github.com/balinomad/simple-config/actions/workflows/test.yml/badge.svg?branch=master)](https://github.com/balinomad/simple-config/actions/workflows/test.yml)
+[![Code analysis](https://github.com/balinomad/simple-config/actions/workflows/analysis.yml/badge.svg)](https://github.com/balinomad/simple-config/actions/workflows/analysis.yml)
+[![Build Status](https://app.travis-ci.com/balinomad/simple-config.svg?branch=master)](https://app.travis-ci.com/balinomad/simple-config)
+[![Coverage Status](https://coveralls.io/repos/github/balinomad/simple-config/badge.svg?branch=master)](https://coveralls.io/github/balinomad/simple-config?branch=master)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue)](https://opensource.org/licenses/MIT)
 
 ## 1. What Is It
@@ -19,13 +19,13 @@ This library does not read the filesystem or other environment settings. To use 
 This package can be installed through [Composer](https://getcomposer.org/).
 
 ```bash
-composer require navindex/simple-config
+composer require balinomad/simple-config
 ```
 
 ## 4. Usage
 
 ```php
-use Navindex\SimpleConfig\Config;
+use BaliNomad\SimpleConfig\Config;
 
 $options = [
     'number of fingers' => 5,
@@ -81,7 +81,3 @@ $arrConfig = $config->toArray();
 | wrap          | $value               | self    | _Static._ If the given value is not an array, wraps it in one. |
 | isAssoc       | $array               | boolean | _Static._ Tests if the array is associative.                   |
 | commonKeys    | $array1, $array2,... | array   | _Static._ Returns the keys present in all arrays.              |
-
-## 6. About Navindex
-
-Navindex is a web development agency in Melbourne, Australia. You'll find an overview of our cmpany [on our website](https://www.navindex.com.au).

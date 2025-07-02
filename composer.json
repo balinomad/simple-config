@@ -1,21 +1,18 @@
 {
-    "name": "navindex/simple-config",
+    "name": "balinomad/simple-config",
     "type": "library",
     "description": "Simple library to create and modify a configuration structure.",
-    "homepage": "https://github.com/navindex/simple-config",
+    "homepage": "https://github.com/balinomad/simple-config",
     "keywords": [
         "configuration",
         "config",
         "options",
-        "Navindex",
         "PHP"
     ],
     "license": "MIT",
     "authors": [
         {
             "name": "Miklos Karpati",
-            "email": "mk@navindex.com.au",
-            "homepage": "https://www.navindex.com.au",
             "role": "Developer"
         }
     ],
@@ -30,12 +27,12 @@
     },
     "autoload": {
         "psr-4": {
-            "Navindex\\SimpleConfig\\": "src/"
+            "BaliNomad\\SimpleConfig\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "Navindex\\SimpleConfig\\Tests\\": "tests/"
+            "BaliNomad\\SimpleConfig\\Tests\\": "tests/"
         }
     },
     "scripts": {
@@ -47,11 +44,5 @@
         "check": "Run static analysis",
         "test": "Run unit tests",
         "testonly": "Run a single test"
-    },
-    "funding": [
-        {
-            "type": "github",
-            "url": "https://github.com/sponsors/navindex"
-        }
-    ]
+    }
 }
