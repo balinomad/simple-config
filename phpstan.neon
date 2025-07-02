@@ -1,11 +1,12 @@
 parameters:
     level: max
-    checkMissingIterableValueType: false
     paths:
         - src
         - tests
     ignoreErrors:
         -
-            message: "#^Parameter \\#1 $data of method BaliNomad\\SimpleConfig\\Config::unserialize\\(\\) expects string, string|null given\\.$#"
+            message: "#^Parameter \\#1 \$data of method BaliNomad\\\\SimpleConfig\\\\Config::unserialize\\(\\) expects string, string\\|null given\\.\$#"
             count: 1
             path: tests/ConfigTest.php
+        -
+            identifier: missingType.iterableValue
