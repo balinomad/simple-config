@@ -1,5 +1,8 @@
 {
     "name": "balinomad/simple-config",
+    "replace": {
+        "navindex/simple-config": "self.version"
+    },
     "type": "library",
     "description": "Simple library to create and modify a configuration structure.",
     "homepage": "https://github.com/balinomad/simple-config",
