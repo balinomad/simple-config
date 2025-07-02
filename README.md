@@ -2,7 +2,6 @@
 
 [![Unit tests](https://github.com/balinomad/simple-config/actions/workflows/test.yml/badge.svg?branch=master)](https://github.com/balinomad/simple-config/actions/workflows/test.yml)
 [![Code analysis](https://github.com/balinomad/simple-config/actions/workflows/analysis.yml/badge.svg)](https://github.com/balinomad/simple-config/actions/workflows/analysis.yml)
-<!-- [![Build Status](https://app.travis-ci.com/balinomad/simple-config.svg?branch=master)](https://app.travis-ci.com/balinomad/simple-config) -->
 [![Coverage Status](https://coveralls.io/repos/github/balinomad/simple-config/badge.svg?branch=master)](https://coveralls.io/github/balinomad/simple-config?branch=master)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue)](https://opensource.org/licenses/MIT)
 
