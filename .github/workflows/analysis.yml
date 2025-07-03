@@ -47,4 +47,4 @@ jobs:
         run: composer update --prefer-stable --prefer-dist --no-progress
 
       - name: Run static code analysis
-        run: composer run-script check-${{ matrix.php }}
+        run: composer run-script check
