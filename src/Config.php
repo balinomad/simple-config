@@ -6,7 +6,6 @@ use ArrayAccess;
 use ArrayIterator;
 use Countable;
 use IteratorAggregate;
-use RuntimeException;
 use Serializable;
 use Traversable;
 
@@ -16,424 +15,150 @@ use Traversable;
  * @implements IteratorAggregate<string|int>
  * @implements ArrayAccess<string|int, mixed>
  */
-class Config implements ArrayAccess, IteratorAggregate, Serializable, Countable
-{
-    // Replace the original value (default)
-    const MERGE_REPLACE = 1;
-
-    // Keep the original value
-    const MERGE_KEEP = 2;
-
-    // Append the new value and convert to array if necessary
-    const MERGE_APPEND = 3;
-
-    /**
-     * Configuration settings.
-     *
-     * @var array<string|int, mixed>
-     */
-    protected $config = [];
-
-    /**
-     * Constructor.
-     *
-     * @param null|array<string|int, mixed> $config Configuration array
-     */
-    public function __construct(?array $config = null)
+if (PHP_VERSION_ID >= 80100) {
+    class Config extends BaseConfig implements ArrayAccess, IteratorAggregate, Serializable, Countable
     {
-        $this->config = $config ?? [];
-    }
-
-    /**
-     * Saves a key value.
-     *
-     * @param  string $key   Dot notation key
-     * @param  mixed  $value Config item value
-     * @return self
-     */
-    public function set(string $key, $value): self
-    {
-        $config = &$this->config;
-
         /**
-         * @var string $k
+         * Checks if the specified offset exists.
+         *
+         * @param string|int $offset The offset to check.
+         *
+         * @return bool True if the offset exists, false otherwise.
          */
-        foreach (explode('.', $key) as $k) {
-            /**
-             * @var array $config<string, mixed>
-             */
-            $config = &$config[$k];
-        }
-
-        $config = $value;
-
-        return $this;
-    }
-
-    /**
-     * Completely removes a key.
-     *
-     * @param  string $key Dot notation key
-     * @return self
-     */
-    public function unset(string $key): self
-    {
-        $config = &$this->config;
-
-        foreach (explode('.', $key) as $k) {
-            if (!is_array($config) || !isset($config[$k])) {
-                return $this;
-            }
-            $config = &$config[$k];
-        }
-
-        $config = null;
-
-        return $this;
-    }
-
-    /**
-     * Retrieves a key value.
-     *
-     * @param  string     $key     Dot notation key
-     * @param  mixed|null $default Default value
-     * @return mixed      Value or default
-     */
-    public function get(string $key, $default = null)
-    {
-        $config = $this->config;
-
-        foreach (explode('.', $key) as $k) {
-            if (!is_array($config)) {
-                throw new RuntimeException('Config does not have key of `' . $key . '` set.');
-            }
-            if (!isset($config[$k])) {
-                return $default;
-            }
-            $config = $config[$k];
-        }
-
-        return $config;
-    }
-
-    /**
-     * Checks if a key exists and not null.
-     *
-     * @param  string $key Dot notation key
-     * @return bool   True if the key exists, false otherwise
-     */
-    public function has(string $key): bool
-    {
-        $config = $this->config;
-
-        /**
-         * @var string $k
-         */
-        foreach (explode('.', $key) as $k) {
-            if (!is_array($config) || !isset($config[$k])) {
-                return false;
-            }
-            $config = $config[$k];
-        }
-
-        return true;
-    }
-
-    /**
-     * Appends value(s) to an array.
-     *
-     * @param  string        $key   Dot notation key
-     * @param  mixed|mixed[] $value Value or values to append
-     * @return self
-     */
-    public function append(string $key, $value): self
-    {
-        $config = &$this->config;
-
-        foreach (explode('.', $key) as $k) {
-            /**
-             * @var array $config<string|int, mixed>
-             */
-            $config = &$config[$k];
-        }
-
-        $config = array_merge(static::wrap($config), static::wrap($value));
-
-        return $this;
-    }
-
-    /**
-     * Substract value(s) from an array.
-     *
-     * Non-associative arrays will be re-indexed.
-     *
-     * @param  string        $key   Dot notation key
-     * @param  mixed|mixed[] $value Value or values to remove
-     * @return self
-     */
-    public function subtract(string $key, $value): self
-    {
-        $config = &$this->config;
-
-        foreach (explode('.', $key) as $k) {
-            if (!is_array($config)) {
-                throw new RuntimeException('Config does not have key of `' . $key . '` set.');
-            }
-            if (!isset($config[$k])) {
-                return $this;
-            }
-            $config = &$config[$k];
-        }
-
-        $value = static::wrap($value);
-
-        if (is_array($config)) {
-            $config = static::isAssoc($config)
-                ? array_diff($config, $value)
-                : array_values(array_diff($config, $value));
-        } elseif (in_array($config, $value)) {
-            $config = [];
-        }
-
-        return $this;
-    }
-
-    /**
-     * Merges another config into this one.
-     *
-     * @param  null|Config|array<string, mixed> $config Configuration array or class
-     * @param  null|int                         $method Merging method
-     * @return self
-     */
-    public function merge($config, ?int $method = null): self
-    {
-        $config = ($config instanceof self)
-            ? $config->toArray()
-            : $config ?? [];
-
-        $method = $method ?? self::MERGE_REPLACE;
-
-        if (self::MERGE_KEEP === $method) {
-            $base = $config;
-            $replacement = $this->config;
-        } else {
-            $base = $this->config;
-            $replacement = $config;
-        }
-
-        $replaced = $this->replace($base, $replacement, $method) ?? [];
-        if (!is_array($replaced)) {
-            $replaced = [$replaced];
-        }
-        $this->config = $replaced;
-
-        return $this;
-    }
-
-    /**
-     * Recursive value replacement.
-     *
-     * @param  null|array<string, mixed>|mixed $base
-     * @param  null|array<string, mixed>|mixed $replacement
-     * @param  int                             $method
-     * @return null|array<string, mixed>|mixed
-     */
-    protected function replace($base, $replacement, int $method)
-    {
-        if (empty($replacement)) {
-            if (!is_array($base) || !static::isAssoc($base)) {
-                return static::wrap($base);
-            }
-
-            return $base;
-        }
-
-        if (!is_array($base) || !static::isAssoc($base) || !is_array($replacement) || !static::isAssoc($replacement)) {
-            if (self::MERGE_APPEND === $method) {
-                return array_unique(array_merge(static::wrap($base), static::wrap($replacement)));
-            }
-
-            return $replacement;
-        }
-
-        foreach (static::commonKeys($base, $replacement) as $key) {
-            $base[$key] = $this->replace($base[$key], $replacement[$key], $method);
-        }
-
-        $merge = $base + $replacement;
-        if (!is_array($merge) || !static::isAssoc($merge)) {
-            return static::wrap($merge);
+        public function offsetExists(mixed $offset): bool
+        {
+            return $this->has((string)$offset);
         }
 
         /**
-         * @var array<string, mixed> $merge
+         * Retrieves the value at the specified offset.
+         *
+         * @param string|int $offset The offset of the value to retrieve.
+         *
+         * @return mixed The value associated with the given offset.
          */
-        return $merge;
-    }
-
-    /**
-     * Splits a sub-array of configuration options into a new config.
-     *
-     * @param  string $key Dot notation key
-     * @return Config
-     */
-    public function split(string $key): self
-    {
-        $value = $this->get($key) ?? [];
-        if (!is_array($value)) {
-            $value = [$value];
+        public function offsetGet(mixed $offset): mixed
+        {
+            return $this->get((string) $offset);
         }
 
-        return new self($value);
-    }
-
-    /**
-     * Returns the entire configuration as an array.
-     *
-     * @return mixed[]
-     */
-    public function toArray(): array
-    {
-        return $this->config;
-    }
-
-    /**
-     * @param  string $offset
-     * @return bool
-     */
-    #[\ReturnTypeWillChange]
-    public function offsetExists($offset): bool
-    {
-        return $this->has((string) $offset);
-    }
-
-    /**
-     * @param  string $offset
-     * @return mixed
-     */
-    #[\ReturnTypeWillChange]
-    public function offsetGet($offset)
-    {
-        return $this->get($offset);
-    }
-
-    /**
-     * @param  string $offset
-     * @param  mixed  $value
-     * @return void
-     */
-    #[\ReturnTypeWillChange]
-    public function offsetSet($offset, $value): void
-    {
-        $this->set((string) $offset, $value);
-    }
-
-    /**
-     * @param  string $offset
-     * @return void
-     */
-    #[\ReturnTypeWillChange]
-    public function offsetUnset($offset): void
-    {
-        $this->unset((string) $offset);
-    }
-
-    /**
-     * @return Traversable <string|int, mixed>
-     */
-    public function getIterator(): Traversable
-    {
-        return new ArrayIterator($this->config);
-    }
-
-    /**
-     * Generates a storable representation of the configuration.
-     *
-     * @return string|null
-     */
-    public function serialize(): ?string
-    {
-        return serialize($this->config);
-    }
-
-    /**
-     * @return array<array-key, mixed>
-     */
-    public function __serialize(): array
-    {
-        return $this->config;
-    }
-
-    /**
-     * Sets the configuration from a stored representation.
-     *
-     * @param  string $data
-     * @return void
-     */
-    public function unserialize($data): void
-    {
-        $config = unserialize($data, ['allowed_classes' => false]);
-        $this->config = is_array($config) ? $config : [];
-    }
-
-    /**
-     * @param  array<string, bool|int|string> $data
-     * @return void
-     */
-    public function __unserialize(array $data): void
-    {
-        $this->config = $data;
-    }
-
-    /**
-     * Counts the config items.
-     *
-     * @return int
-     */
-    public function count(): int
-    {
-        return count($this->config, COUNT_RECURSIVE);
-    }
-
-    /**
-     * If the given value is not an array, wraps it in one.
-     *
-     * @param  mixed   $value
-     * @return mixed[]
-     */
-    public static function wrap($value): array
-    {
-        if (is_null($value)) {
-            return [];
+        /**
+         * Sets the value at the specified offset.
+         *
+         * @param string|int $offset The offset at which to set the value.
+         * @param mixed      $value  The value to set.
+         *
+         * @return void
+         */
+        public function offsetSet(mixed $offset, mixed $value): void
+        {
+            $this->set((string)$offset, $value);
         }
 
-        return is_array($value) ? $value : [$value];
-    }
+        /**
+         * Removes the value associated with the given offset.
+         *
+         * @param string|int $offset The offset of the value to remove.
+         *
+         * @return void
+         */
+        public function offsetUnset(mixed $offset): void
+        {
+            $this->unset((string)$offset);
+        }
 
-    /**
-     * Tests if the array is associative.
-     *
-     * Note that this function will return false if an array is empty. Meaning
-     * empty arrays will be treated as if they are not associative arrays.
-     *
-     * @param  mixed[] $array
-     * @return bool
-     */
-    public static function isAssoc(array $array): bool
-    {
-        return 0 < count($array) && count(array_filter(array_keys($array), 'is_string')) == count($array);
-    }
+        /**
+         * Counts the number of items in the config.
+         *
+         * @return int The number of items in the config.
+         */
+        public function count(): int
+        {
+            return count($this->config, COUNT_RECURSIVE);
+        }
 
-    /**
-     * Returns the keys present in all arrays.
-     *
-     * @param  mixed[]  $array1
-     * @param  mixed[]  $array2
-     * @param  mixed[]  ...$_
-     * @return string[]
-     */
-    public static function commonKeys(array $array1, array $array2, array ...$_): array
+        /**
+         * Retrieves an external iterator.
+         *
+         * @return \Traversable An iterator implementing the Traversable interface,
+         *                      allowing iteration over the configuration items.
+         */
+        public function getIterator(): Traversable
+        {
+            return new ArrayIterator($this->config);
+        }
+    }
+} else {
+    class Config extends BaseConfig implements ArrayAccess, IteratorAggregate, Serializable, Countable
     {
-        return array_keys(array_intersect_key($array1, $array2, ...$_));
+        /**
+         * Checks if the specified offset exists.
+         *
+         * @param string|int $offset The offset to check.
+         *
+         * @return bool True if the offset exists, false otherwise.
+         */
+        public function offsetExists($offset): bool
+        {
+            return $this->has((string) $offset);
+        }
+
+        /**
+         * Retrieves the value at the specified offset.
+         *
+         * @param string|int $offset The offset of the value to retrieve.
+         *
+         * @return mixed The value associated with the given offset.
+         */
+        public function offsetGet($offset)
+        {
+            return $this->get((string) $offset);
+        }
+
+        /**
+         * Sets the value at the specified offset.
+         *
+         * @param string|int $offset The offset at which to set the value.
+         * @param mixed      $value  The value to set.
+         *
+         * @return void
+         */
+        public function offsetSet($offset, $value): void
+        {
+            $this->set((string) $offset, $value);
+        }
+
+        /**
+         * Removes the value associated with the given offset.
+         *
+         * @param string|int $offset The offset of the value to remove.
+         *
+         * @return void
+         */
+        public function offsetUnset($offset): void
+        {
+            $this->unset((string) $offset);
+        }
+
+        /**
+         * Counts the number of items in the config.
+         *
+         * @return int The number of items in the config.
+         */
+        public function count(): int
+        {
+            return count($this->toArray(), COUNT_RECURSIVE);
+        }
+
+        /**
+         * Retrieves an external iterator.
+         *
+         * @return \Traversable An iterator implementing the Traversable interface,
+         *                      allowing iteration over the configuration items.
+         */
+        public function getIterator(): Traversable
+        {
+            return new ArrayIterator($this->toArray());
+        }
     }
 }
