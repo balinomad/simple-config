@@ -19,7 +19,7 @@ class Config implements \ArrayAccess, \IteratorAggregate, \Countable
     /**
      * The configuration array.
      *
-     * @param array<string|int, mixed> $config
+     * @var array<string|int, mixed> $config
      */
     protected array $config = [];
 
@@ -366,7 +366,7 @@ class Config implements \ArrayAccess, \IteratorAggregate, \Countable
     {
         $segment = array_shift($segments);
 
-        if (!is_array($config) || !array_key_exists($segment, $config)) {
+        if (!isset($segment) || !is_array($config) || !array_key_exists($segment, $config)) {
             return;
         }
 

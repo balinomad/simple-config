@@ -42,6 +42,8 @@ final class ConfigTest extends TestCase
 
     /**
      * @dataProvider providerSet
+     *
+     * @param array<string|int, mixed> $expected
      */
     public function testSet(string $key, mixed $value, array $expected): void
     {
@@ -60,6 +62,9 @@ final class ConfigTest extends TestCase
 
     /**
      * @dataProvider providerUnset
+     *
+     * @param array<int|string, mixed>|null $config
+     * @param array<int|string, mixed>      $expected
      */
     public function testUnset(?array $config, string $key, array $expected): void
     {
@@ -80,6 +85,8 @@ final class ConfigTest extends TestCase
 
     /**
      * @dataProvider providerGet
+     *
+     * @param array<int|string, mixed>|null $config
      */
     public function testGet(?array $config, string $key, mixed $default, mixed $expected): void
     {
@@ -101,6 +108,8 @@ final class ConfigTest extends TestCase
 
     /**
      * @dataProvider providerHas
+     *
+     * @param array<int|string, mixed>|null $config
      */
     public function testHas(?array $config, string $key, bool $expected): void
     {
@@ -122,6 +131,9 @@ final class ConfigTest extends TestCase
 
     /**
      * @dataProvider providerAppend
+     *
+     * @param array<int|string, mixed>|null $config
+     * @param array<int|string, mixed>      $expected
      */
     public function testAppend(?array $config, string $key, mixed $value, array $expected): void
     {
@@ -159,6 +171,9 @@ final class ConfigTest extends TestCase
 
     /**
      * @dataProvider providerSubtract
+     *
+     * @param array<int|string, mixed>|null $config
+     * @param array<int|string, mixed>      $expected
      */
     public function testSubtract(?array $config, string $key, mixed $value, array $expected): void
     {
@@ -208,8 +223,12 @@ final class ConfigTest extends TestCase
 
     /**
      * @dataProvider providerMerge
+     *
+     * @param array<int|string, mixed>|null                                $config
+     * @param array<int|string, mixed>|\BaliNomad\SimpleConfig\Config|null $merge
+     * @param array<int|string, mixed>                                     $expected
      */
-    public function testMerge(?array $config, $merge, int $method, array $expected): void
+    public function testMerge(?array $config, mixed $merge, int $method, array $expected): void
     {
         $c = new Config($config);
         $this->assertEquals($expected, $c->merge($merge, $method)->toArray());
@@ -263,6 +282,9 @@ final class ConfigTest extends TestCase
 
     /**
      * @dataProvider providerSplit
+     *
+     * @param array<int|string, mixed>|null $config
+     * @param array<int|string, mixed>      $expected
      */
     public function testSplit(?array $config, string $key, array $expected): void
     {

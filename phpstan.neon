@@ -3,10 +3,3 @@ parameters:
     paths:
         - src
         - tests
-    ignoreErrors:
-        -
-            message: '#unserialize\(\) expects string, string\|null given#'
-            count: 1
-            path: tests/ConfigTest.php
-        -
-            identifier: missingType.iterableValue
