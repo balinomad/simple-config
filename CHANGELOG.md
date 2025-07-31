@@ -6,10 +6,11 @@ All notable changes to `balinomad/simple-config` will be documented in this file
 
 ## v1.0.0 - 2025-07-31
 
-### Major Changes & BC Breaks
+### Major Changes & Backward Compatibility Breaks
 
 -   **Immutability**: The `Config` class is now immutable. The methods `set()`, `unset()`, `append()`, `subtract()`, and `merge()` no longer modify the existing object but return a new `Config` instance with the changes. This is a significant breaking change.
 -   **ArrayAccess Modification Disabled**: Setting or unsetting configuration values via array access (e.g., `$config['foo'] = 'bar';` or `unset($config['foo']);`) is no longer allowed and will throw a `LogicException`.
+-   **PHP 8.0 support dropped**: PHP 8.1+ is now required for this library.
 
 ### Added
 
