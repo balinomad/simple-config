@@ -1,7 +1,6 @@
 language: php
 
 php:
-  - 8.0
   - 8.1
   - 8.2
   - 8.3
@@ -19,3 +18,9 @@ before_script:
 
 after_success:
   - travis_retry php vendor/bin/php-coveralls --verbose --coverage-clover build/logs/clover.xml
+
+os: linux
+
+arch:
+  - ppc64le
+  - s390x
