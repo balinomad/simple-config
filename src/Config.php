@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace BaliNomad\SimpleConfig;
 
 /**
- * A simple, dot-notation based configuration manager.
+ * A simple, immutable, dot-notation based configuration manager.
  *
  * @implements \IteratorAggregate<string|int, mixed>
  * @implements \ArrayAccess<string|int, mixed>
@@ -16,38 +16,45 @@ class Config implements \ArrayAccess, \IteratorAggregate, \Countable
     public const MERGE_KEEP = 2;    // Keep original value
     public const MERGE_APPEND = 3;  // Append new value, converting to array if necessary
 
+    public const CLEAN_NONE = 0;
+    public const CLEAN_NULLS = 1;
+    public const CLEAN_EMPTY_ARRAYS = 2;
+    public const CLEAN_ALL = self::CLEAN_NULLS | self::CLEAN_EMPTY_ARRAYS;
+
     /**
      * The configuration array.
      *
-     * @var array<string|int, mixed> $config
+     * @var array<string|int, mixed>
      */
-    protected array $config = [];
+    private readonly array $config;
 
     /**
-     * Constructor.
-     *
-     * @param null|array<string|int, mixed> $config Configuration settings to start with.
+     * The cleaning policy for this instance.
      */
-    public function __construct(?array $config = null)
+    private readonly int $cleaningFlags;
+
+    /**
+     * @param null|array<string|int, mixed> $config        Configuration settings to start with.
+     * @param int                           $cleaningFlags A bitmask of cleaning options.
+     */
+    public function __construct(?array $config = null, int $cleaningFlags = self::CLEAN_NULLS)
     {
-        if ($config !== null) {
-            $this->config = $this->recursiveClean($config);
-        }
+        $this->cleaningFlags = $cleaningFlags;
+        $this->config = self::clean($config ?? [], $this->cleaningFlags);
     }
 
     /**
      * Retrieves a configuration value using dot notation.
      *
-     * @param string     $key     The dot notation key to access the configuration value.
-     * @param mixed|null $default The default value to return if the key is not found.
-     *                            Defaults to null.
+     * @param string $key     The dot notation key.
+     * @param mixed  $default The default value to return if the key is not found.
      *
-     * @return mixed              The value associated with the key or the default value.
+     * @return mixed The value associated with the key or the default value.
      */
     public function get(string $key, mixed $default = null): mixed
     {
         $config = $this->config;
-        $segments = $this->parseKey($key);
+        $segments = self::parseKey($key);
 
         foreach ($segments as $segment) {
             if (!is_array($config) || !array_key_exists($segment, $config)) {
@@ -60,36 +67,7 @@ class Config implements \ArrayAccess, \IteratorAggregate, \Countable
     }
 
     /**
-     * Sets a configuration value using dot notation.
-     * Setting a value to `null` will unset the key.
-     *
-     * @param string $key   Dot notation key
-     * @param mixed  $value Config item value
-     *
-     * @return self
-     */
-    public function set(string $key, mixed $value): self
-    {
-        if ($value === null) {
-            return $this->unset($key);
-        }
-
-        $config = &$this->config;
-        $segments = $this->parseKey($key);
-
-        foreach ($segments as $segment) {
-            if (!isset($config[$segment]) || !is_array($config[$segment])) {
-                $config[$segment] = [];
-            }
-            $config = &$config[$segment];
-        }
-        $config = $value;
-
-        return $this;
-    }
-
-    /**
-     * Checks if a key exists using dot notation.
+     * Checks if a key exists.
      *
      * @param string $key Dot notation key
      *
@@ -97,58 +75,61 @@ class Config implements \ArrayAccess, \IteratorAggregate, \Countable
      */
     public function has(string $key): bool
     {
-        $config = $this->config;
-        $segments = $this->parseKey($key);
-
-        foreach ($segments as $segment) {
-            if (!is_array($config) || !array_key_exists($segment, $config)) {
-                return false;
-            }
-            $config = $config[$segment];
-        }
-
-        return true;
+        // Use a unique marker to distinguish between a null value and a non-existent key
+        $marker = new \stdClass();
+        return $this->get($key, $marker) !== $marker;
     }
 
     /**
-     * Removes a key using dot notation and cleans up empty parent arrays.
+     * Returns a new Config instance with a value set or updated.
+     *
+     * @param string $key   Dot notation key
+     * @param mixed  $value The value to set
+     *
+     * @return self A new Config instance containing the updated configuration
+     */
+    public function with(string $key, mixed $value): self
+    {
+        if ($value === null && ($this->cleaningFlags & self::CLEAN_NULLS)) {
+            return $this->without($key);
+        }
+        $newConfig = self::setValue($this->config, self::parseKey($key), $value);
+        return new self($newConfig, $this->cleaningFlags);
+    }
+
+    /**
+     * Returns a new Config instance with a key removed.
      *
      * @param string $key Dot notation key
      *
-     * @return self
+     * @return self A new Config instance containing the updated configuration
      */
-    public function unset(string $key): self
+    public function without(string $key): self
     {
-        $segments = $this->parseKey($key);
-        if (!empty($segments)) {
-            $this->recursiveUnset($this->config, $segments);
-        }
-        return $this;
+        $newConfig = self::unsetValue($this->config, self::parseKey($key));
+        return new self($newConfig, $this->cleaningFlags);
     }
 
     /**
      * Appends value(s) to an array at the specified key.
      *
-     * @param string        $key   Dot notation key
-     * @param mixed|mixed[] $value Value or values to append
+     * @param string $key   Dot notation key
+     * @param mixed  $value Value or values to append
      *
      * @return self
      */
     public function append(string $key, mixed $value): self
     {
         $original = $this->get($key, []);
-        $newValue = array_merge(static::wrap($original), static::wrap($value));
-        $this->set($key, $newValue);
-
-        return $this;
+        $newValue = array_merge(self::wrap($original), self::wrap($value));
+        return $this->with($key, $newValue);
     }
 
     /**
-     * Subtracts value(s) from an array at the specified key.
-     * If the resulting array is empty, the key is unset.
+     * Subtracts a value from an array, returning a new Config instance.
      *
-     * @param string        $key   Dot notation key
-     * @param mixed|mixed[] $value Value or values to remove
+     * @param string $key   Dot notation key
+     * @param mixed  $value Value to remove
      *
      * @return self
      */
@@ -159,50 +140,43 @@ class Config implements \ArrayAccess, \IteratorAggregate, \Countable
             return $this;
         }
 
-        $toRemove = static::wrap($value);
-        $newValue = static::isAssoc($original)
+        $toRemove = self::wrap($value);
+        $newValue = self::isAssoc($original)
             ? array_diff($original, $toRemove)
             : array_values(array_diff($original, $toRemove));
 
-        if (empty($newValue)) {
-            return $this->unset($key);
-        }
-
-        $this->set($key, $newValue);
-
-        return $this;
+        return $this->with($key, $newValue);
     }
 
     /**
-     * Merges another configuration array or Config object.
+     * Merges another configuration, returning a new Config instance.
      *
-     * @param null|self|array<string|int, mixed> $config Configuration array or class
-     * @param int                                $method Merging strategy (REPLACE, KEEP, or APPEND)
+     * @param null|self|array<string, mixed> $config The configuration to merge
+     * @param int                            $method Merging strategy
      *
-     * @return self
+     * @return self A new Config instance containing the merged configuration
      */
-    public function merge($config, int $method = self::MERGE_REPLACE): self
+    public function merge(mixed $config, int $method = self::MERGE_REPLACE): self
     {
-        $configArray = ($config instanceof self) ? $config->toArray() : ($config ?? []);
-
-        $this->config = ($method === self::MERGE_KEEP)
-            ? $this->mergeArrays($configArray, $this->config)
-            : $this->mergeArrays($this->config, $configArray, $method);
-
-        return $this;
+        $otherArray = ($config instanceof self)
+            ? $config->toArray()
+            : ($config ?? []);
+        $merged = self::mergeArrays($this->config, $otherArray, $method);
+        return new self($merged, $this->cleaningFlags);
     }
 
     /**
      * Returns a new Config instance for a specific key.
      *
-     * @param string $key Dot notation key for the configuration item
+     * @param string $key Dot notation key
      *
      * @return self A new Config instance containing the split configuration
      */
     public function split(string $key): self
     {
         $value = $this->get($key, []);
-        return new self(is_array($value) ? $value : [$value]);
+        $data = is_array($value) ? $value : [$value];
+        return new self($data, $this->cleaningFlags);
     }
 
     /**
@@ -215,24 +189,58 @@ class Config implements \ArrayAccess, \IteratorAggregate, \Countable
         return $this->config;
     }
 
+    // @codeCoverageIgnoreStart
+
+    /**
+     * @deprecated 1.0.0 Use with() instead for an immutable operation.
+     *
+     * Sets a configuration value using dot notation.
+     *
+     * @param string $key   Dot notation key
+     * @param mixed  $value Config item value
+     *
+     * @return self
+     */
+    public function set(string $key, mixed $value): self
+    {
+        return $this->with($key, $value);
+    }
+
+    /**
+     * @deprecated 1.0.0 Use without() instead for an immutable operation.
+     *
+     * Removes a key using dot notation and cleans up empty parent arrays.
+     *
+     * @param string $key Dot notation key
+     *
+     * @return self
+     */
+    public function unset(string $key): self
+    {
+        return $this->without($key);
+    }
+
+    // @codeCoverageIgnoreEnd
+
     /**
      * Magic method for serializing the object.
      *
-     * @return array<string|int, mixed> The configuration array
+     * @return array{config: array<string|int, mixed>, cleaningFlags: int} The configuration array
      */
     public function __serialize(): array
     {
-        return $this->config;
+        return ['config' => $this->config, 'cleaningFlags' => $this->cleaningFlags];
     }
 
     /**
      * Magic method for restoring the configuration from a given serialized array.
      *
-     * @param array<string|int, mixed> $data The serialized configuration data
+     * @param array{config: array<string|int, mixed>, cleaningFlags?: int} $data The serialized configuration data
      */
     public function __unserialize(array $data): void
     {
-        $this->config = $data;
+        $this->config = $data['config'];
+        $this->cleaningFlags = $data['cleaningFlags'] ?? self::CLEAN_NULLS;
     }
 
     /**
@@ -260,35 +268,46 @@ class Config implements \ArrayAccess, \IteratorAggregate, \Countable
     }
 
     /**
-     * Sets the value at the specified offset.
+     * Throws an exception when trying to set a value.
      *
-     * @param string|int $offset The offset at which to set the value
-     * @param mixed      $value  The value to set
+     * @param mixed $offset Unused parameter
+     * @param mixed $value  Unused parameter
+     *
+     * @throws \LogicException Cannot modify configuration via array access
      */
     public function offsetSet(mixed $offset, mixed $value): void
     {
-        $this->set((string)$offset, $value);
+        throw new \LogicException(sprintf(
+            'Cannot modify %s via array access. Use with() instead.',
+            self::class
+        ));
     }
 
     /**
-     * Removes the value associated with the given offset.
+     * Throws an exception when trying to unset a value.
      *
-     * @param string|int $offset The offset of the value to remove
+     * @param mixed $offset Unused parameter
+     *
+     * @throws \LogicException Cannot modify configuration via array access
      */
     public function offsetUnset(mixed $offset): void
     {
-        $this->unset((string)$offset);
+        throw new \LogicException(sprintf(
+            'Cannot modify %s via array access. Use without() instead.',
+            self::class
+        ));
     }
 
     /**
      * Counts all leaf configuration values.
-     * A leaf is any non-associative-array value.
+     *
+     * Note that non-associative arrays (lists) are counted as a single leaf.
      *
      * @return int The number of leaf items in the config
      */
     public function count(): int
     {
-        return $this->recursiveCount($this->config);
+        return self::countLeaves($this->config);
     }
 
     /**
@@ -309,7 +328,7 @@ class Config implements \ArrayAccess, \IteratorAggregate, \Countable
      *
      * @return array<string|int, mixed> The wrapped array
      */
-    public static function wrap(mixed $value): array
+    private static function wrap(mixed $value): array
     {
         if ($value === null) {
             return [];
@@ -327,59 +346,96 @@ class Config implements \ArrayAccess, \IteratorAggregate, \Countable
      *
      * @return bool True if the array is associative, false otherwise
      */
-    public static function isAssoc(array $array): bool
+    private static function isAssoc(array $array): bool
     {
         return $array !== [] && array_keys($array) !== range(0, count($array) - 1);
     }
 
-    /**
-     * Recursively removes null values and empty arrays from the configuration.
-     *
-     * @param array<string|int, mixed> $data The data array to clean
-     *
-     * @return array<string|int, mixed> The cleaned array with non-null
-     *                                  and non-empty elements
-     */
-    private function recursiveClean(array $data): array
-    {
-        $result = [];
-        foreach ($data as $key => $value) {
-            if (is_array($value)) {
-                $value = $this->recursiveClean($value);
-                if (!empty($value)) {
-                    $result[$key] = $value;
-                }
-            } elseif ($value !== null) {
-                $result[$key] = $value;
-            }
-        }
-        return $result;
-    }
 
     /**
-     * Recursively unsets a key and cleans up empty parent arrays.
+     * Recursively sets a value in a nested array.
      *
-     * @param array<string|int, mixed> &$config The configuration array
-     * @param string[] $segments                The key segments
+     * @param array<string|int, mixed> $config The array to set the value in
+     * @param array<int, string>       $segments The segments of the key to set
+     * @param mixed                    $value   The value to set
+     *
+     * @return array<string|int, mixed> The updated array
      */
-    private function recursiveUnset(array &$config, array $segments): void
+    private static function setValue(array $config, array $segments, mixed $value): array
     {
-        $segment = array_shift($segments);
-
-        if (!isset($segment) || !is_array($config) || !array_key_exists($segment, $config)) {
-            return;
+        $key = array_shift($segments);
+        if ($key === null) {
+            return $config;
         }
 
         if (!empty($segments)) {
-            $this->recursiveUnset($config[$segment], $segments);
+            $subConfig = $config[$key] ?? [];
+            $config[$key] = self::setValue(is_array($subConfig) ? $subConfig : [], $segments, $value);
         } else {
-            unset($config[$segment]);
-            return;
+            $config[$key] = $value;
         }
 
-        if (isset($config[$segment]) && is_array($config[$segment]) && empty($config[$segment])) {
-            unset($config[$segment]);
+        return $config;
+    }
+
+    /**
+     * Recursively unsets a value from a nested array.
+     *
+     * @param array<string|int, mixed> $config The array to unset the value from
+     * @param array<int, string>       $segments The segments of the key to unset
+     *
+     * @return array<string|int, mixed> The updated array
+     */
+    private static function unsetValue(array $config, array $segments): array
+    {
+        if (empty($segments) || empty($config)) {
+            return $config;
         }
+
+        $key = array_shift($segments);
+
+        if (!array_key_exists($key, $config)) {
+            return $config;
+        }
+
+        if (empty($segments)) {
+            unset($config[$key]);
+        } elseif (is_array($config[$key])) {
+            $config[$key] = self::unsetValue($config[$key], $segments);
+        }
+
+        return $config;
+    }
+
+    /**
+     * Recursively removes values from a given array based on cleaning flags.
+     *
+     * @param array<string|int, mixed> $data The data array to clean
+     * @param int                      $cleaningFlags A bitmask of cleaning options
+     *
+     * @return array<string|int, mixed> The cleaned array
+     */
+    private static function clean(array $data, int $cleaningFlags): array
+    {
+        $result = [];
+        $cleanNulls = ($cleaningFlags & self::CLEAN_NULLS) !== 0;
+        $cleanEmpty = ($cleaningFlags & self::CLEAN_EMPTY_ARRAYS) !== 0;
+
+        foreach ($data as $key => $value) {
+            if ($cleanNulls && $value === null) {
+                continue;
+            }
+
+            if (is_array($value)) {
+                $value = self::clean($value, $cleaningFlags);
+                if ($cleanEmpty && empty($value)) {
+                    continue;
+                }
+            }
+            $result[$key] = $value;
+        }
+
+        return $result;
     }
 
     /**
@@ -393,7 +449,7 @@ class Config implements \ArrayAccess, \IteratorAggregate, \Countable
      *
      * @return array<string|int, mixed> The merged array
      */
-    private function mergeArrays(array $base, array $replacement, int $method = self::MERGE_REPLACE): array
+    private static function mergeArrays(array $base, array $replacement, int $method): array
     {
         foreach ($replacement as $key => $value) {
             if (!array_key_exists($key, $base)) {
@@ -401,21 +457,27 @@ class Config implements \ArrayAccess, \IteratorAggregate, \Countable
                 continue;
             }
 
+            if ($method === self::MERGE_KEEP) {
+                continue;
+            }
+
             $baseValue = $base[$key];
-            if (
-                is_array($value) && is_array($baseValue) &&
-                static::isAssoc($value) && static::isAssoc($baseValue)
-            ) {
-                $base[$key] = $this->mergeArrays($baseValue, $value, $method);
-                continue;
-            }
 
-            if ($method !== self::MERGE_APPEND || (!is_array($baseValue) && !is_array($value))) {
+            if (self::bothAreAssocArrays($baseValue, $value)) {
+                /**
+                 * @var array<string, mixed> $baseValue
+                 * @var array<string, mixed> $value
+                 */
+                $base[$key] = self::mergeArrays($baseValue, $value, $method);
+            } elseif ($method === self::MERGE_APPEND && self::bothAreLists($baseValue, $value)) {
+                /**
+                 * @var array<int, mixed> $baseValue
+                 * @var mixed             $value
+                 */
+                $base[$key] = array_merge($baseValue, self::wrap($value));
+            } else {
                 $base[$key] = $value;
-                continue;
             }
-
-            $base[$key] = array_merge(static::wrap($baseValue), static::wrap($value));
         }
 
         return $base;
@@ -426,31 +488,60 @@ class Config implements \ArrayAccess, \IteratorAggregate, \Countable
      *
      * @param string $key The dot-notation key
      *
-     * @return string[] The key segments
+     * @return array<int, string> The key segments
      */
-    private function parseKey(string $key): array
+    private static function parseKey(string $key): array
     {
         return array_filter(explode('.', $key), fn($s) => $s !== '');
     }
 
     /**
-     * Recursively counts leaf nodes in a configuration array.
+     * Recursively counts leaf nodes in an array.
      *
      * @param array<string|int, mixed> $data The data array to count
      *
      * @return int The number of leaf nodes
      */
-    private function recursiveCount(array $data): int
+    private static function countLeaves(array $data): int
     {
         $count = 0;
         foreach ($data as $value) {
             // Recurse only for associative arrays. Lists are counted as one leaf.
-            if (is_array($value) && static::isAssoc($value)) {
-                $count += $this->recursiveCount($value);
+            if (is_array($value) && self::isAssoc($value)) {
+                $count += self::countLeaves($value);
             } else {
                 $count++;
             }
         }
         return $count;
+    }
+
+    /**
+     * Checks if both $a and $b are associative arrays.
+     *
+     * @param mixed $a The first value to check
+     * @param mixed $b The second value to check
+     *
+     * @return bool True if both $a and $b are associative arrays, false otherwise
+     */
+    private static function bothAreAssocArrays(mixed $a, mixed $b): bool
+    {
+        return is_array($a) && self::isAssoc($a) && is_array($b) && self::isAssoc($b);
+    }
+
+    /**
+     * Checks if both $a and $b are lists (non-associative arrays).
+     *
+     * $a must be a list, and $b must either not be an array, or be a list.
+     *
+     * @param mixed $a The first value to check
+     * @param mixed $b The second value to check
+     *
+     * @return bool True if both $a and $b are lists, false otherwise
+     */
+    private static function bothAreLists(mixed $a, mixed $b): bool
+    {
+        return is_array($a) && !self::isAssoc($a) &&
+            (!is_array($b) || !self::isAssoc($b));
     }
 }

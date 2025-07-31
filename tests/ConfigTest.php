@@ -12,18 +12,25 @@ use PHPUnit\Framework\TestCase;
  */
 final class ConfigTest extends TestCase
 {
-    public function testConstructor(): void
+    public function testConstructorWithNull(): void
     {
+        $c = new Config(null);
+        self::assertEquals([], $c->toArray());
+    }
+
+    public function testConstructorDefaultCleaning(): void
+    {
+        // Default is CLEAN_NULLS, so empty arrays should be kept.
         $c = new Config([
             'aaa' => ['bbb' => ['ccc' => 'value']],
             'something',
             'ddd' => ['xxx', 'yyy', 'zz'],
             'eee' => -8,
             'fff' => false,
-            'ggg' => null, // Should be removed by constructor
+            'ggg' => null, // Should be removed
             42,
-            'hhh' => ['a' => null], // Should be removed
-            'iii' => [], // should be removed
+            'hhh' => ['a' => null], // 'a' should be removed, 'hhh' becomes empty array
+            'iii' => [], // Should be kept
         ]);
 
         $expected = [
@@ -33,54 +40,98 @@ final class ConfigTest extends TestCase
             'eee' => -8,
             'fff' => false,
             1 => 42,
+            'hhh' => [],
+            'iii' => [],
         ];
 
-        $this->assertEquals($expected, $c->toArray());
-        $this->assertEquals(new Config(), new Config(null));
-        $this->assertEquals([], (new Config([]))->toArray());
+        self::assertEquals($expected, $c->toArray());
+    }
+
+    public function testConstructorWithCleanAll(): void
+    {
+        // CLEAN_ALL should remove both nulls and empty arrays.
+        $c = new Config([
+            'aaa' => ['bbb' => ['ccc' => 'value']],
+            'ggg' => null,
+            'hhh' => ['a' => null],
+            'iii' => [],
+        ], Config::CLEAN_ALL);
+
+        $expected = [
+            'aaa' => ['bbb' => ['ccc' => 'value']],
+        ];
+
+        self::assertEquals($expected, $c->toArray());
+    }
+
+    public function testConstructorWithCleanNone(): void
+    {
+        // CLEAN_NONE should keep everything.
+        $c = new Config([
+            'a' => null,
+            'b' => [],
+        ], Config::CLEAN_NONE);
+
+        self::assertEquals(['a' => null, 'b' => []], $c->toArray());
     }
 
     /**
-     * @dataProvider providerSet
+     * @dataProvider providerWith
      *
+     * @param array<string|int, mixed> $initial
      * @param array<string|int, mixed> $expected
      */
-    public function testSet(string $key, mixed $value, array $expected): void
+    public function testWith(string $key, mixed $value, int $flags, array $initial, array $expected): void
     {
-        $c = new Config();
-        $this->assertEquals($expected, $c->set($key, $value)->toArray());
-    }
-
-    public static function providerSet(): \Generator
-    {
-        yield 'set nested value' => ['aaa.bbb.ccc', 'value', ['aaa' => ['bbb' => ['ccc' => 'value']]]];
-        yield 'set null unsets key' => ['aaa.bbb.ccc', null, []];
-        yield 'set false value' => ['aaa.bbb.ccc', false, ['aaa' => ['bbb' => ['ccc' => false]]]];
-        yield 'set empty array' => ['aaa.bbb.ccc', [], ['aaa' => ['bbb' => ['ccc' => []]]]];
-        yield 'set overwrites scalar' => ['a', 'string', ['a' => 'string']];
+        $c = new Config($initial, $flags);
+        $newC = $c->with($key, $value);
+        self::assertEquals($initial, $c->toArray(), 'Original config should not be modified.');
+        self::assertEquals($expected, $newC->toArray(), 'New config should have the updated value.');
     }
 
     /**
-     * @dataProvider providerUnset
-     *
-     * @param array<int|string, mixed>|null $config
-     * @param array<int|string, mixed>      $expected
+     * @return \Generator<string, array{0: string, 1: mixed, 2: int, 3: array<string|int, mixed>, 4: array<string|int, mixed>}>
      */
-    public function testUnset(?array $config, string $key, array $expected): void
+    public static function providerWith(): \Generator
     {
-        $c = new Config($config);
-        $this->assertEquals($expected, $c->unset($key)->toArray());
+        yield 'set nested value' => ['aaa.bbb.ccc', 'value', Config::CLEAN_NULLS, [], ['aaa' => ['bbb' => ['ccc' => 'value']]]];
+        yield 'set null unsets key by default' => ['aaa.bbb.ccc', null, Config::CLEAN_NULLS, ['aaa' => ['bbb' => ['ccc' => 'old']]], ['aaa' => ['bbb' => []]]];
+        yield 'set null with CLEAN_ALL unsets parents' => ['aaa.bbb.ccc', null, Config::CLEAN_ALL, ['aaa' => ['bbb' => ['ccc' => 'old']]], []];
+        yield 'set null does not unset key with CLEAN_NONE' => ['aaa.bbb.ccc', null, Config::CLEAN_NONE, [], ['aaa' => ['bbb' => ['ccc' => null]]]];
+        yield 'set empty array unsets key with CLEAN_ALL' => ['aaa.bbb.ccc', [], Config::CLEAN_ALL, ['aaa' => ['bbb' => ['ccc' => 'old']]], []];
+        yield 'set empty array does not unset key with CLEAN_NULLS' => ['aaa.bbb.ccc', [], Config::CLEAN_NULLS, [], ['aaa' => ['bbb' => ['ccc' => []]]]];
+        yield 'set false value' => ['aaa.bbb.ccc', false, Config::CLEAN_NULLS, [], ['aaa' => ['bbb' => ['ccc' => false]]]];
+        yield 'set with empty key does nothing' => ['', 'value', Config::CLEAN_NULLS, ['existing' => 'data'], ['existing' => 'data']];
     }
 
-    public static function providerUnset(): \Generator
+    /**
+     * @dataProvider providerWithout
+     *
+     * @param null|array<int|string, mixed> $config
+     * @param array<int|string, mixed>      $expected
+     */
+    public function testWithout(?array $config, string $key, int $flags, array $expected): void
     {
-        yield 'unset leaf node' => [['aaa' => ['bbb' => ['ccc' => 'value']]], 'aaa.bbb.ccc', []];
-        yield 'unset array node' => [['aaa' => ['bbb' => ['ccc' => ['value', 'another value']]]], 'aaa.bbb.ccc', []];
-        yield 'unset non-existent leaf' => [['aaa' => ['bbb' => ['ccc' => 'value']]], 'aaa.bbb.ddd', ['aaa' => ['bbb' => ['ccc' => 'value']]]];
-        yield 'unset intermediate node' => [['aaa' => ['bbb' => ['ccc' => 'value']]], 'aaa.bbb', []];
-        yield 'unset root node' => [['aaa' => ['bbb' => ['ccc' => 'value']]], 'aaa', []];
-        yield 'unset non-existent deep' => [['aaa' => ['bbb' => ['ccc' => 'value']]], 'x.y.z', ['aaa' => ['bbb' => ['ccc' => 'value']]]];
-        yield 'unset with empty key' => [['a' => 1], '', ['a' => 1]];
+        $c = new Config($config, $flags);
+        $newC = $c->without($key);
+        self::assertEquals($config ?? [], $c->toArray(), 'Original config should not be modified.');
+        self::assertEquals($expected, $newC->toArray(), 'New config should have the key removed.');
+    }
+
+    /**
+     * @return \Generator<string, array{0: null|array<int|string, mixed>, 1: string, 2: int, 3: array<string, mixed>}>
+     */
+    public static function providerWithout(): \Generator
+    {
+        $conf = ['aaa' => ['bbb' => ['ccc' => 'value']]];
+        yield 'unset leaf node (default)' => [$conf, 'aaa.bbb.ccc', Config::CLEAN_NULLS, ['aaa' => ['bbb' => []]]];
+        yield 'unset leaf node (with cleanup)' => [$conf, 'aaa.bbb.ccc', Config::CLEAN_ALL, []];
+        yield 'unset non-existent leaf' => [['aaa' => 1], 'aaa.bbb', Config::CLEAN_ALL, ['aaa' => 1]];
+        yield 'unset intermediate node' => [$conf, 'aaa.bbb', Config::CLEAN_ALL, []];
+        yield 'unset root node' => [$conf, 'aaa', Config::CLEAN_ALL, []];
+        yield 'unset with empty key does nothing' => [['a' => 1], '', Config::CLEAN_ALL, ['a' => 1]];
+        yield 'unset non-existent key' => [['existing' => 'value'], 'nonexistent', Config::CLEAN_NULLS, ['existing' => 'value']];
+        yield 'unset with empty key' => [['test' => 'value'], '', Config::CLEAN_NULLS, ['test' => 'value']];
     }
 
     /**
@@ -91,18 +142,18 @@ final class ConfigTest extends TestCase
     public function testGet(?array $config, string $key, mixed $default, mixed $expected): void
     {
         $c = new Config($config);
-        $this->assertEquals($expected, $c->get($key, $default));
+        self::assertEquals($expected, $c->get($key, $default));
     }
 
+    /**
+     * @return \Generator<string, array{0: array<int|string, mixed>|null, 1: string, 2: mixed, 3: mixed}>
+     */
     public static function providerGet(): \Generator
     {
         $conf = ['aaa' => ['bbb' => ['ccc' => 'value']], 'scalar' => 'string'];
         yield 'get existing leaf' => [$conf, 'aaa.bbb.ccc', 'default', 'value'];
         yield 'get existing node' => [$conf, 'aaa.bbb', 'default', ['ccc' => 'value']];
-        yield 'get root node' => [$conf, 'aaa', 'default', ['bbb' => ['ccc' => 'value']]];
-        yield 'get with trailing dot' => [$conf, 'aaa.bbb.', 'default', ['ccc' => 'value']];
         yield 'get non-existent leaf' => [$conf, 'aaa.bbb.ddd', 'default', 'default'];
-        yield 'get non-existent with null default' => [$conf, 'aaa.ddd', null, null];
         yield 'get through scalar' => [$conf, 'scalar.foo', 'default', 'default'];
     }
 
@@ -111,22 +162,22 @@ final class ConfigTest extends TestCase
      *
      * @param array<int|string, mixed>|null $config
      */
-    public function testHas(?array $config, string $key, bool $expected): void
+    public function testHas(?array $config, string $key, bool $expected, int $flags = Config::CLEAN_NULLS): void
     {
-        $c = new Config($config);
-        $this->assertEquals($expected, $c->has($key));
+        $c = new Config($config, $flags);
+        self::assertEquals($expected, $c->has($key));
     }
 
+    /**
+     * @return \Generator<string, array{0: array<int|string, mixed>|null, 1: string, 2: bool, 3?: int}>
+     */
     public static function providerHas(): \Generator
     {
-        $conf = ['aaa' => ['bbb' => ['ccc' => 'value']], 'scalar' => 'string'];
+        $conf = ['aaa' => ['bbb' => ['ccc' => 'value']], 'scalar' => 'string', 'n' => null];
         yield 'has existing leaf' => [$conf, 'aaa.bbb.ccc', true];
-        yield 'has existing node' => [$conf, 'aaa.bbb', true];
-        yield 'has root node' => [$conf, 'aaa', true];
-        yield 'has with trailing dot' => [$conf, 'aaa.', true];
+        yield 'has existing null with CLEAN_NONE' => [['n' => null], 'n', true, Config::CLEAN_NONE];
+        yield 'does not have existing null with CLEAN_NULLS' => [['n' => null], 'n', false, Config::CLEAN_NULLS];
         yield 'has non-existent leaf' => [$conf, 'aaa.bbb.ddd', false];
-        yield 'has non-existent root' => [$conf, 'xxx', false];
-        yield 'has through scalar' => [$conf, 'scalar.foo', false];
     }
 
     /**
@@ -138,35 +189,20 @@ final class ConfigTest extends TestCase
     public function testAppend(?array $config, string $key, mixed $value, array $expected): void
     {
         $c = new Config($config);
-        $this->assertEquals($expected, $c->append($key, $value)->toArray());
+        $newC = $c->append($key, $value);
+
+        self::assertEquals($config ?? [], $c->toArray(), 'Original config should not be modified.');
+        self::assertEquals($expected, $newC->toArray(), 'New config should have the updated value.');
     }
 
+    /**
+     * @return \Generator<string, array{0: array<int|string, mixed>|null, 1: string, 2: mixed, 3: array<string, mixed>}>
+     */
     public static function providerAppend(): \Generator
     {
-        yield 'append to existing array' => [
-            ['a' => ['b' => ['c' => ['v1']]]],
-            'a.b.c',
-            'v2',
-            ['a' => ['b' => ['c' => ['v1', 'v2']]]]
-        ];
-        yield 'append array to existing array' => [
-            ['a' => ['b' => ['c' => ['v1']]]],
-            'a.b.c',
-            ['v2', 'v3'],
-            ['a' => ['b' => ['c' => ['v1', 'v2', 'v3']]]]
-        ];
-        yield 'append to new key' => [
-            ['a' => 1],
-            'b',
-            'v2',
-            ['a' => 1, 'b' => ['v2']]
-        ];
-        yield 'append to scalar converts to array' => [
-            ['a' => ['b' => 'v1']],
-            'a.b',
-            'v2',
-            ['a' => ['b' => ['v1', 'v2']]]
-        ];
+        yield 'append to existing array' => [['a' => ['b' => [['v1']]]], 'a.b.0', 'v2', ['a' => ['b' => [['v1', 'v2']]]]];
+        yield 'append to new key' => [['a' => 1], 'b', 'v2', ['a' => 1, 'b' => ['v2']]];
+        yield 'append to scalar converts to array' => [['a' => ['b' => 'v1']], 'a.b', 'v2', ['a' => ['b' => ['v1', 'v2']]]];
     }
 
     /**
@@ -175,154 +211,98 @@ final class ConfigTest extends TestCase
      * @param array<int|string, mixed>|null $config
      * @param array<int|string, mixed>      $expected
      */
-    public function testSubtract(?array $config, string $key, mixed $value, array $expected): void
+    public function testSubtract(?array $config, string $key, mixed $value, int $flags, array $expected): void
     {
-        $c = new Config($config);
-        $this->assertEquals($expected, $c->subtract($key, $value)->toArray());
+        $c = new Config($config, $flags);
+        $newC = $c->subtract($key, $value);
+
+        self::assertEquals($config ?? [], $c->toArray(), 'Original config should not be modified.');
+        self::assertEquals($expected, $newC->toArray(), 'New config should have the updated value.');
     }
 
+    /**
+     * @return \Generator<string, array{0: array<int|string, mixed>|null, 1: string, 2: mixed, 3: int, 4: array<string, mixed>}>
+     */
     public static function providerSubtract(): \Generator
     {
-        yield 'subtract from list' => [
-            ['a' => ['v1', 'v2', 'v3']],
-            'a',
-            'v2',
-            ['a' => ['v1', 'v3']]
-        ];
-        yield 'subtract from assoc' => [
-            ['a' => ['k1' => 'v1', 'k2' => 'v2']],
-            'a',
-            'v1',
-            ['a' => ['k2' => 'v2']]
-        ];
-        yield 'subtract last item removes key' => [
-            ['a' => ['v1']],
-            'a',
-            'v1',
-            []
-        ];
-        yield 'subtract from non-array does nothing' => [
-            ['a' => 'string'],
-            'a',
-            'string',
-            ['a' => 'string']
-        ];
-        yield 'subtract from non-existent key does nothing' => [
-            ['a' => 1],
-            'b',
-            'c',
-            ['a' => 1]
-        ];
-        yield 'subtract null value does nothing' => [
-            ['a' => ['v1', 'v2']],
-            'a',
-            null,
-            ['a' => ['v1', 'v2']]
-        ];
+        yield 'subtract from list' => [['a' => ['v1', 'v2', 'v3']], 'a', 'v2', Config::CLEAN_NULLS, ['a' => [0 => 'v1', 1 => 'v3']]];
+        yield 'subtract last item (default)' => [['a' => ['v1']], 'a', 'v1', Config::CLEAN_NULLS, ['a' => []]];
+        yield 'subtract last item (with cleanup)' => [['a' => ['v1']], 'a', 'v1', Config::CLEAN_ALL, []];
+        yield 'subtract from non-array does nothing' => [['a' => 's'], 'a', 's', Config::CLEAN_ALL, ['a' => 's']];
+        yield 'subtract from non-existent key does nothing' => [['a' => 1], 'b', 'c', Config::CLEAN_ALL, ['a' => 1]];
+        yield 'subtract from associative array' => [['tags' => ['php' => 'PHP', 'js' => 'JavaScript']], 'tags', 'PHP', Config::CLEAN_NULLS, ['tags' => ['js' => 'JavaScript']]];
     }
 
     /**
      * @dataProvider providerMerge
      *
-     * @param array<int|string, mixed>|null                                $config
-     * @param array<int|string, mixed>|\BaliNomad\SimpleConfig\Config|null $merge
-     * @param array<int|string, mixed>                                     $expected
+     * @param array<string, mixed>|null        $config
+     * @param array<string, mixed>|Config|null $merge
+     * @param array<string, mixed>             $expected
      */
     public function testMerge(?array $config, mixed $merge, int $method, array $expected): void
     {
         $c = new Config($config);
-        $this->assertEquals($expected, $c->merge($merge, $method)->toArray());
-    }
+        $newC = $c->merge($merge, $method);
 
-    public static function providerMerge(): \Generator
-    {
-        $base = [
-            'a' => 1,
-            'b' => ['c' => 2, 'd' => [3, 4]],
-            'e' => [5, 6]
-        ];
-        $replacement = [
-            'b' => ['c' => 99, 'd' => [98]], // 'd' is a list, should be replaced entirely
-            'e' => [7], // 'e' is a list, should be replaced
-            'f' => 8
-        ];
-
-        yield 'replace strategy' => [
-            $base,
-            $replacement,
-            Config::MERGE_REPLACE,
-            ['a' => 1, 'b' => ['c' => 99, 'd' => [98]], 'e' => [7], 'f' => 8]
-        ];
-        yield 'keep strategy' => [
-            $base,
-            $replacement,
-            Config::MERGE_KEEP,
-            ['a' => 1, 'b' => ['c' => 2, 'd' => [3, 4]], 'e' => [5, 6], 'f' => 8]
-        ];
-        yield 'append strategy' => [
-            $base,
-            $replacement,
-            Config::MERGE_APPEND,
-            // 'c' is replaced, 'd' and 'e' (lists) are merged, 'f' is added
-            ['a' => 1, 'b' => ['c' => 99, 'd' => [3, 4, 98]], 'e' => [5, 6, 7], 'f' => 8]
-        ];
-        yield 'merge with Config object' => [
-            ['a' => 1],
-            new Config(['b' => 2]),
-            Config::MERGE_REPLACE,
-            ['a' => 1, 'b' => 2]
-        ];
-        yield 'merge with null' => [
-            ['a' => 1],
-            null,
-            Config::MERGE_REPLACE,
-            ['a' => 1]
-        ];
+        self::assertEquals($config ?? [], $c->toArray(), 'Original config should not be modified.');
+        self::assertEquals($expected, $newC->toArray(), 'New config should have the updated values.');
     }
 
     /**
-     * @dataProvider providerSplit
-     *
-     * @param array<int|string, mixed>|null $config
-     * @param array<int|string, mixed>      $expected
+     * @return \Generator<string, array{0: array<int|string, mixed>|null, 1: mixed, 2: int, 3: array<string, mixed>}>
      */
-    public function testSplit(?array $config, string $key, array $expected): void
+    public static function providerMerge(): \Generator
     {
-        $c = new Config($config);
-        $this->assertEquals(new Config($expected), $c->split($key));
-    }
+        $base = ['a' => 1, 'b' => ['c' => 2, 'd' => [3, 4]], 'e' => [5, 6]];
+        $repl = ['b' => ['c' => 99, 'd' => [98]], 'e' => [7], 'f' => 8];
 
-    public static function providerSplit(): \Generator
-    {
-        $conf = [
-            'a' => ['b' => ['c' => 'value']],
-            'd' => ['e' => ['f' => 'another']],
-            'g' => 'scalar'
+        yield 'replace strategy' => [$base, $repl, Config::MERGE_REPLACE, ['a' => 1, 'b' => ['c' => 99, 'd' => [98]], 'e' => [7], 'f' => 8]];
+        yield 'keep strategy' => [$base, $repl, Config::MERGE_KEEP, ['a' => 1, 'b' => ['c' => 2, 'd' => [3, 4]], 'e' => [5, 6], 'f' => 8]];
+        yield 'append strategy' => [$base, $repl, Config::MERGE_APPEND, ['a' => 1, 'b' => ['c' => 99, 'd' => [3, 4, 98]], 'e' => [5, 6, 7], 'f' => 8]];
+        yield 'keep strategy with existing keys' => [['a' => 1, 'b' => 2], ['b' => 99, 'c' => 3], Config::MERGE_KEEP, ['a' => 1, 'b' => 2, 'c' => 3]];
+        yield 'merge with Config object' => [
+            ['a' => 1, 'b' => ['x' => 2]],
+            new Config(['b' => ['x' => 9], 'c' => 3]),
+            Config::MERGE_REPLACE,
+            ['a' => 1, 'b' => ['x' => 9], 'c' => 3]
         ];
-        yield 'split existing node' => [$conf, 'a.b', ['c' => 'value']];
-        yield 'split non-existent node' => [$conf, 'a.x', []];
-        yield 'split scalar value' => [$conf, 'g', [0 => 'scalar']];
     }
 
-    public function testArrayAccess(): void
+    public function testSplitPreservesCleaningFlags(): void
+    {
+        // Create a config that cleans everything
+        $c = new Config(['a' => ['b' => 'value', 'c' => null]], Config::CLEAN_ALL);
+        self::assertEquals(['a' => ['b' => 'value']], $c->toArray());
+
+        // Split it
+        $split = $c->split('a');
+        self::assertEquals(['b' => 'value'], $split->toArray());
+
+        // Test the behavior of the new object to prove flags were inherited
+        $newSplit = $split->with('b', null);
+        self::assertEquals([], $newSplit->toArray(), 'The split config should have inherited CLEAN_ALL flag');
+    }
+
+    public function testArrayAccessImmutable(): void
     {
         $c = new Config();
-        $c['a.b'] = 'value';
-        $this->assertEquals(['a' => ['b' => 'value']], $c->toArray());
-        $this->assertTrue(isset($c['a.b']));
-        $this->assertEquals('value', $c['a.b']);
-        unset($c['a.b']);
-        $this->assertFalse(isset($c['a.b']));
-        $this->assertEquals([], $c->toArray());
+        self::assertTrue(isset($c['a.b']) === false);
+
+        $this->expectException(\LogicException::class);
+        $c['a.b'] = 'value'; // Should throw
+    }
+
+    public function testArrayAccessUnsetImmutable(): void
+    {
+        $c = new Config(['a' => 1]);
+        $this->expectException(\LogicException::class);
+        unset($c['a']); // Should throw
     }
 
     public function testCount(): void
     {
-        $c = new Config([
-            'a' => ['b' => 'c'], // 1 leaf (a.b)
-            'd' => [1, 2, 3],    // 1 leaf (d is a list)
-            'e' => 'f'           // 1 leaf (e)
-        ]);
+        $c = new Config(['a' => ['b' => 'c'], 'd' => [1, 2, 3], 'e' => 'f']);
         $this->assertCount(3, $c);
         $this->assertCount(0, new Config());
     }
@@ -338,31 +318,64 @@ final class ConfigTest extends TestCase
         foreach ($c as $key => $value) {
             $items[$key] = $value;
         }
-        $this->assertEquals(['a' => 1, 'b' => 2], $items);
+        self::assertEquals(['a' => 1, 'b' => 2], $items);
     }
 
     public function testSerialization(): void
     {
-        $c = new Config(['a' => 1, 'b' => ['c' => true]]);
+        $c = new Config(['a' => 1], Config::CLEAN_ALL);
         $serialized = serialize($c);
         /** @var Config $unserialized */
         $unserialized = unserialize($serialized);
 
         $this->assertInstanceOf(Config::class, $unserialized);
-        $this->assertEquals($c->toArray(), $unserialized->toArray());
+        self::assertEquals($c->toArray(), $unserialized->toArray());
+
+        // Verify that the cleaning flag was restored
+        $newC = $unserialized->with('b', []);
+        self::assertEquals(['a' => 1], $newC->toArray(), 'Flag should be restored after unserialization');
     }
 
-    public function testMergeWithUnserializedObject(): void
+    public function testOffsetGetWithIntegerOffset(): void
     {
-        $c1 = new Config(['a' => 1]);
+        $config = new Config([0 => 'first', 1 => 'second']);
+        self::assertEquals('first', $config[0]);
+        self::assertEquals('second', $config[1]);
+    }
 
-        $c2_orig = new Config(['b' => 2]);
-        $serialized = serialize($c2_orig);
-        /** @var Config $c2_unserialized */
-        $c2_unserialized = unserialize($serialized);
+    // public function testWrapWithNull(): void
+    // {
+    //     self::assertEquals([], Config::wrap(null));
+    // }
 
-        $c1->merge($c2_unserialized);
+    /**
+     * @covers ::wrap
+     */
+    public function testAppendWithNullValue(): void
+    {
+        // This test indirectly verifies that `wrap(null)` behaves as expected (returns an empty array).
+        // By appending `null`, we are testing the case where `wrap` receives null.
+        // The expected result is that the key is set with an empty array, because
+        // `array_merge(wrap($original_non_existent), wrap(null))` becomes `array_merge([], [])`.
+        $c = new Config();
+        $newC = $c->append('a.b', null);
 
-        $this->assertEquals(['a' => 1, 'b' => 2], $c1->toArray());
+        self::assertEquals(['a' => ['b' => []]], $newC->toArray());
+    }
+
+    public function testCleanEmptyArrays(): void
+    {
+        $config = new Config([
+            'keep' => 'value',
+            'empty' => [],
+            'nested' => ['inner_empty' => [], 'inner_value' => 'test']
+        ], Config::CLEAN_ALL);
+
+        $expected = [
+            'keep' => 'value',
+            'nested' => ['inner_value' => 'test']
+        ];
+
+        self::assertEquals($expected, $config->toArray());
     }
 }

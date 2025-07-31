@@ -23,12 +23,14 @@ composer require balinomad/simple-config
 
 ## 4. Usage
 
+The `Config` object is **immutable**. This means methods like `with`, `without`, `append`, and `merge` do not change the original object; they return a new, modified `Config` instance.
+
+
 ```php
 use BaliNomad\SimpleConfig\Config;
 
 $options = [
-    'number of fingers' => 5,
-    'allowed pets' => ['dog', 'cat', 'spider'],
+    'allowed_pets' => ['dog', 'cat', 'spider'],
     'cat' => [
         'name' => 'Mia',
         'food' => ['tuna', 'chicken', 'lamb'],
@@ -40,47 +42,53 @@ $options = [
             'tail' => 'black',
         ]
     ],
-    'spider' => true,
-    42,
-    'some text'
+    'has_spider' => true
 ];
 
 $config = new Config($options);
 
-$config
-    ->set('spider', false)
-    ->unset('dog.color.tail')
-    ->append('cat.food', 'salmon')
-    ->subtract('cat.food', 'tuna');
+// with(), without(), etc. return a NEW Config instance.
+$newConfig = $config
+    ->with('has_spider', false)                 // Set a value
+    ->without('dog.color.tail')                 // Remove a value
+    ->append('cat.food', 'salmon')              // Add an item to an array
+    ->subtract('allowed_pets', 'spider');       // Remove an item from an array
 
-$spider = $config->get('spider');
+// Get values using dot notation
+$catFood = $newConfig->get('cat.food');
+// Returns: ['tuna', 'chicken', 'lamb', 'salmon']
 
-$doWeHaveDog = $config->has('dog');
+// Check if a key exists
+$hasTailColor = $newConfig->has('dog.color.tail');
+// Returns: false
 
-$arrConfig = $config->toArray();
+// The original $config object remains unchanged
+$originalSpiderSetting = $config->get('has_spider');
+// Returns: true
+
+// Get the entire configuration as an array
+$arrConfig = $newConfig->toArray();
 ```
 
-## 5. Actions
+## 5. API Reference
 
 | Method | Attributes | Returns | Description |
 | :----- | :--------- | :------ | :---------- |
-| _constructor_ | $config | - | Constructor. |
-| get | $key, $default | mixed | Retrieves a configuration value using dot notation. |
-| set | $key, $value | self | Sets a configuration value using dot notation. |
-| has | $key | boolean | Checks if a key exists using dot notation. |
-| unset | $key | self | Removes a key using dot notation and cleans up empty parent arrays. |
-| append | $key, $value | self | Appends value(s) to an array at the specified key. |
-| subtract | $key, $value | self | Subtracts value(s) from an array at the specified key. |
-| merge | $config, $method | self | Merges another configuration array or Config object. |
-| split | $key | Config | Returns a new Config instance for a specific key. |
-| toArray | - | array | Returns the entire configuration as an array. |
-| __serialize | - | string | Magic method for serializing the object. |
-| __unserialize | $data | - | Magic method for restoring the configuration from a given serialized array. |
-| offsetExists | $offset | bool | Checks if the specified offset exists. |
-| offsetGet | $offset | mixed | Retrieves the value at the specified offset. |
-| offsetSet | $offset, $value | void | Sets the value at the specified offset. |
-| offsetUnset | $offset | void | Removes the value associated with the given offset. |
-| count | - | int | Counts all leaf configuration values. |
-| getIterator | - | Traversable | An iterator implementing the Traversable interface, allowing iteration over the configuration items. |
+| *constructor* | `?array $config`, `int $cleaningFlags` | `self` | Creates a new Config instance. |
+| `with` | `$key`, `$value` | `self` | Returns a **new** instance with a value set. |
+| `without` | `$key` | `self` | Returns a **new** instance with a key removed. |
+| `get` | `$key`, `$default` | `mixed` | Retrieves a value using dot notation. |
+| `has` | `$key` | `bool` | Checks if a key exists. |
+| `append` | `$key`, `$value` | `self` | Returns a **new** instance with a value appended to an array. |
+| `subtract`| `$key`, `$value` | `self` | Returns a **new** instance with a value removed from an array. |
+| `merge` | `$config`, `$method` | `self` | Returns a **new** instance merged with another configuration. |
+| `split` | `$key` | `self` | Returns a **new** instance containing only a subset of the config. |
+| `toArray` | - | `array` | Returns the entire configuration as an array. |
+| `count` | - | `int` | Counts all leaf configuration values. Non-associative arrays are counted as a single leaf. |
+| `getIterator`| - | `Traversable`| Gets an iterator for the top-level items. |
+| `offsetExists`| `$offset` | `bool` | Implements `ArrayAccess`. Checks if a key exists (e.g., `isset($config['app.key'])`). |
+| `offsetGet`| `$offset` | `mixed` | Implements `ArrayAccess`. Gets a value (e.g., `$config['app.key']`). |
 | wrap | $value | array | _Static._ Wraps a value in an array unless it is already an array. |
 | isAssoc | $array | boolean | _Static._ Heuristically determines if an array is associative. |
+
+**Note**: Modifying a `Config` object via array access (e.g., `$config['key'] = 'value'`) is not permitted and will throw a `LogicException`. Use the `with()` and `without()` methods instead.
