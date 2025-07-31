@@ -88,7 +88,5 @@ $arrConfig = $newConfig->toArray();
 | `getIterator`| - | `Traversable`| Gets an iterator for the top-level items. |
 | `offsetExists`| `$offset` | `bool` | Implements `ArrayAccess`. Checks if a key exists (e.g., `isset($config['app.key'])`). |
 | `offsetGet`| `$offset` | `mixed` | Implements `ArrayAccess`. Gets a value (e.g., `$config['app.key']`). |
-| wrap | $value | array | _Static._ Wraps a value in an array unless it is already an array. |
-| isAssoc | $array | boolean | _Static._ Heuristically determines if an array is associative. |
 
 **Note**: Modifying a `Config` object via array access (e.g., `$config['key'] = 'value'`) is not permitted and will throw a `LogicException`. Use the `with()` and `without()` methods instead.
