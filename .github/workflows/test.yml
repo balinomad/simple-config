@@ -60,7 +60,6 @@ jobs:
         if: matrix.php == '8.3' && matrix.os == 'ubuntu-latest' && matrix.stability == 'prefer-stable'
         run: vendor/bin/php-coveralls --verbose --coverage_clover=build/logs/clover.xml --json_path build/logs/coveralls-upload.json
         env:
-          COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
           COVERALLS_PARALLEL: true
           COVERALLS_FLAG_NAME: PHP ${{ matrix.php }}
 
