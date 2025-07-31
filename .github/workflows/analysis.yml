@@ -9,31 +9,27 @@ on:
 jobs:
   build:
     name: PHP ${{ matrix.php }} Static Analysis
+    runs-on: ubuntu-latest
 
     strategy:
       matrix:
         php: ["8.1", "8.2", "8.3", "8.4"]
 
-    runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Setup PHP, with composer and extensions
+      - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
           tools: composer, phpstan
           extensions: intl, json, mbstring, xml
-        env:
-          COMPOSER_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Validate composer.json and composer.lock
+      - name: Validate composer
         run: composer validate --strict
 
-      - name: Cache Composer packages
-        id: composer-cache
+      - name: Cache Composer
         uses: actions/cache@v4
         with:
           path: |
@@ -46,5 +42,24 @@ jobs:
       - name: Install dependencies
         run: composer update --prefer-stable --prefer-dist --no-progress
 
-      - name: Run static code analysis
+      - name: Run static analysis
         run: composer run-script check
+
+      - name: Upload coverage to Coveralls (only in PHP 8.3)
+        if: matrix.php == '8.3'
+        uses: coverallsapp/github-action@master
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path-to-lcov: ./coverage/lcov.info
+          parallel: true
+
+  coveralls-finish:
+    name: Coveralls Finished
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify Coveralls that all jobs are done
+        uses: coverallsapp/github-action@master
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          parallel-finished: true
