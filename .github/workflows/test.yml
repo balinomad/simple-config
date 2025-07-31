@@ -24,15 +24,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Setup PHP, with composer and extensions
+      - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
           tools: composer, phpunit
           extensions: intl, json, mbstring, xml
           coverage: pcov
-        env:
-          COMPOSER_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup problem matchers
         run: |
@@ -62,8 +60,9 @@ jobs:
         if: matrix.php == '8.3' && matrix.os == 'ubuntu-latest' && matrix.stability == 'prefer-stable'
         run: vendor/bin/php-coveralls --verbose --coverage_clover=build/logs/clover.xml --json_path build/logs/coveralls-upload.json
         env:
-          COVERALLS_FLAG_NAME: PHP ${{ matrix.php }}
+          COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
           COVERALLS_PARALLEL: true
+          COVERALLS_FLAG_NAME: PHP ${{ matrix.php }}
 
   coveralls:
     name: Coveralls Finished

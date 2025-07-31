@@ -26,10 +26,10 @@ jobs:
           tools: composer, phpstan
           extensions: intl, json, mbstring, xml
 
-      - name: Validate composer
+      - name: Validate composer.json and composer.lock
         run: composer validate --strict
 
-      - name: Cache Composer
+      - name: Cache Composer packages
         uses: actions/cache@v4
         with:
           path: |
@@ -44,22 +44,3 @@ jobs:
 
       - name: Run static analysis
         run: composer run-script check
-
-      - name: Upload coverage to Coveralls (only in PHP 8.3)
-        if: matrix.php == '8.3'
-        uses: coverallsapp/github-action@master
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          path-to-lcov: ./coverage/lcov.info
-          parallel: true
-
-  coveralls-finish:
-    name: Coveralls Finished
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Notify Coveralls that all jobs are done
-        uses: coverallsapp/github-action@master
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          parallel-finished: true
