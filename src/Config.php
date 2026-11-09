@@ -128,6 +128,8 @@ class Config implements \ArrayAccess, \IteratorAggregate, \Countable
     /**
      * Subtracts a value from an array, returning a new Config instance.
      *
+     * Values are compared strictly: both the type and the value must match.
+     *
      * @param string $key   Dot notation key
      * @param mixed  $value Value to remove
      *
@@ -141,9 +143,14 @@ class Config implements \ArrayAccess, \IteratorAggregate, \Countable
         }
 
         $toRemove = self::wrap($value);
-        $newValue = self::isAssoc($original)
-            ? array_diff($original, $toRemove)
-            : array_values(array_diff($original, $toRemove));
+        $newValue = array_filter(
+            $original,
+            static fn(mixed $item): bool => !in_array($item, $toRemove, true),
+        );
+
+        if (!self::isAssoc($original)) {
+            $newValue = array_values($newValue);
+        }
 
         return $this->with($key, $newValue);
     }

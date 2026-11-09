@@ -225,12 +225,24 @@ final class ConfigTest extends TestCase
      */
     public static function providerSubtract(): \Generator
     {
+        $object = new \stdClass();
+        $otherObject = new \stdClass();
+        $otherObject->id = 1;
+
         yield 'subtract from list' => [['a' => ['v1', 'v2', 'v3']], 'a', 'v2', Config::CLEAN_NULLS, ['a' => [0 => 'v1', 1 => 'v3']]];
         yield 'subtract last item (default)' => [['a' => ['v1']], 'a', 'v1', Config::CLEAN_NULLS, ['a' => []]];
         yield 'subtract last item (with cleanup)' => [['a' => ['v1']], 'a', 'v1', Config::CLEAN_ALL, []];
         yield 'subtract from non-array does nothing' => [['a' => 's'], 'a', 's', Config::CLEAN_ALL, ['a' => 's']];
         yield 'subtract from non-existent key does nothing' => [['a' => 1], 'b', 'c', Config::CLEAN_ALL, ['a' => 1]];
         yield 'subtract from associative array' => [['tags' => ['php' => 'PHP', 'js' => 'JavaScript']], 'tags', 'PHP', Config::CLEAN_NULLS, ['tags' => ['js' => 'JavaScript']]];
+        yield 'subtract removes exact integer' => [['a' => [1]], 'a', 1, Config::CLEAN_NULLS, ['a' => []]];
+        yield 'subtract does not match numeric string to integer' => [['a' => [1]], 'a', '1', Config::CLEAN_NULLS, ['a' => [1]]];
+        yield 'subtract does not match empty string to null' => [['a' => [null]], 'a', '', Config::CLEAN_NONE, ['a' => [null]]];
+        yield 'subtract does not match empty string to false' => [['a' => [false]], 'a', '', Config::CLEAN_NULLS, ['a' => [false]]];
+        yield 'subtract removes identical arrays' => [['a' => [['x']]], 'a', [['x']], Config::CLEAN_NULLS, ['a' => []]];
+        yield 'subtract does not match different arrays' => [['a' => [['x']]], 'a', [['y']], Config::CLEAN_NULLS, ['a' => [['x']]]];
+        yield 'subtract removes same object instance' => [['a' => [$object]], 'a', $object, Config::CLEAN_NULLS, ['a' => []]];
+        yield 'subtract does not match different object instances' => [['a' => [$object]], 'a', $otherObject, Config::CLEAN_NULLS, ['a' => [$object]]];
     }
 
     /**

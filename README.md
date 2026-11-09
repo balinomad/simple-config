@@ -52,7 +52,7 @@ $newConfig = $config
     ->with('has_spider', false)                 // Set a value
     ->without('dog.color.tail')                 // Remove a value
     ->append('cat.food', 'salmon')              // Add an item to an array
-    ->subtract('allowed_pets', 'spider');       // Remove an item from an array
+    ->subtract('allowed_pets', 'spider');       // Remove an exact match from an array
 
 // Get values using dot notation
 $catFood = $newConfig->get('cat.food');
@@ -80,7 +80,7 @@ $arrConfig = $newConfig->toArray();
 | `get` | `$key`, `$default` | `mixed` | Retrieves a value using dot notation. |
 | `has` | `$key` | `bool` | Checks if a key exists. |
 | `append` | `$key`, `$value` | `self` | Returns a **new** instance with a value appended to an array. |
-| `subtract`| `$key`, `$value` | `self` | Returns a **new** instance with a value removed from an array. |
+| `subtract`| `$key`, `$value` | `self` | Returns a **new** instance with an exact match removed from an array. Type and value must match. |
 | `merge` | `$config`, `$method` | `self` | Returns a **new** instance merged with another configuration. |
 | `split` | `$key` | `self` | Returns a **new** instance containing only a subset of the config. |
 | `toArray` | - | `array` | Returns the entire configuration as an array. |
