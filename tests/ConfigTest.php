@@ -277,7 +277,7 @@ final class ConfigTest extends TestCase
             ['a' => 1, 'b' => ['x' => 2]],
             new Config(['b' => ['x' => 9], 'c' => 3]),
             Config::MERGE_REPLACE,
-            ['a' => 1, 'b' => ['x' => 9], 'c' => 3]
+            ['a' => 1, 'b' => ['x' => 9], 'c' => 3],
         ];
     }
 
@@ -375,12 +375,12 @@ final class ConfigTest extends TestCase
         $config = new Config([
             'keep' => 'value',
             'empty' => [],
-            'nested' => ['inner_empty' => [], 'inner_value' => 'test']
+            'nested' => ['inner_empty' => [], 'inner_value' => 'test'],
         ], Config::CLEAN_ALL);
 
         $expected = [
             'keep' => 'value',
-            'nested' => ['inner_value' => 'test']
+            'nested' => ['inner_value' => 'test'],
         ];
 
         self::assertEquals($expected, $config->toArray());
