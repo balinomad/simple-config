@@ -1,10 +1,10 @@
 # Changelog
 
----
+All notable changes to this project are documented in this file.
 
-All notable changes to `balinomad/simple-config` will be documented in this file.
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## v1.0.0 - 2025-07-31
+## [1.0.0] - 2025-07-31
 
 ### Major Changes & Backward Compatibility Breaks
 
@@ -32,7 +32,7 @@ All notable changes to `balinomad/simple-config` will be documented in this file
 -   The mutable methods `set()` and `unset()` are now deprecated. Use the new immutable `with()` and `without()` methods instead.
 
 
-## v0.3.0 - 2025-07-04
+## [0.3.0] - 2025-07-04
 
 -   Minimum PHP version requirement changed to v8.0.
 -   `commonKeys` method removed.
@@ -42,15 +42,15 @@ All notable changes to `balinomad/simple-config` will be documented in this file
 -   Static analysis has been improved.
 -   Additional unit tests have been added and the code coverage has been increased to 100%.
 
-## v0.2.2 - 2025-07-03
+## [0.2.2] - 2025-07-03
 
 -   Namespace replacement of `Navindex\SimpleConfig` added to `composer.json`.
 
-## v0.2.1 - 2025-07-03
+## [0.2.1] - 2025-07-03
 
 -   Namespace change from `Navindex\SimpleConfig` to `BaliNomad\SimpleConfig`.
 
-## v0.2.0 - 2021-09-27
+## [0.2.0] - 2021-09-27
 
 ### Fixed
 
@@ -66,6 +66,14 @@ All notable changes to `balinomad/simple-config` will be documented in this file
 
 -   List of public class methods added to the Readme file.
 
-## v0.1.0 - 2021-09-26
+## [0.1.0] - 2021-09-26
 
 Initial release.
+
+[1.0.0]: https://github.com/balinomad/simple-config/compare/v0.3.0...v1.0.0
+[0.3.0]: https://github.com/balinomad/simple-config/compare/v0.2.2,,,v0.3.0
+[0.2.2]: https://github.com/balinomad/simple-config/compare/v0.2.1...v0.2.2
+[0.2.1]: https://github.com/balinomad/simple-config/compare/v0.2.0...v0.2.1
+[0.2.0]: https://github.com/balinomad/simple-config/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/balinomad/simple-config/releases/tag/v0.1.0
+
