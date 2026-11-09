@@ -4,6 +4,17 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.1] - 2026-11-09
+
+### Changed
+
+-   `Config::merge()` now declares `self|array|null` instead of `mixed`.
+-   Internal array checks use `array_is_list()` and explicit `=== []` comparisons.
+
+### Fixed
+
+-   PHPDoc union ordering now places `null` last.
+
 ## [1.0.0] - 2025-07-31
 
 ### Major Changes & Backward Compatibility Breaks
@@ -70,8 +81,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 Initial release.
 
+[1.0.1]: https://github.com/balinomad/simple-config/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/balinomad/simple-config/compare/v0.3.0...v1.0.0
-[0.3.0]: https://github.com/balinomad/simple-config/compare/v0.2.2,,,v0.3.0
+[0.3.0]: https://github.com/balinomad/simple-config/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/balinomad/simple-config/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/balinomad/simple-config/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/balinomad/simple-config/compare/v0.1.0...v0.2.0
