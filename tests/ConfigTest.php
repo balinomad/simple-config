@@ -107,7 +107,7 @@ final class ConfigTest extends TestCase
     /**
      * @dataProvider providerWithout
      *
-     * @param null|array<int|string, mixed> $config
+     * @param array<int|string, mixed>|null $config
      * @param array<int|string, mixed>      $expected
      */
     public function testWithout(?array $config, string $key, int $flags, array $expected): void
@@ -119,7 +119,7 @@ final class ConfigTest extends TestCase
     }
 
     /**
-     * @return \Generator<string, array{0: null|array<int|string, mixed>, 1: string, 2: int, 3: array<string, mixed>}>
+     * @return \Generator<string, array{0: array<int|string, mixed>|null, 1: string, 2: int, 3: array<string, mixed>}>
      */
     public static function providerWithout(): \Generator
     {
@@ -287,7 +287,7 @@ final class ConfigTest extends TestCase
     public function testArrayAccessImmutable(): void
     {
         $c = new Config();
-        self::assertTrue(isset($c['a.b']) === false);
+        self::assertFalse(isset($c['a.b']));
 
         $this->expectException(\LogicException::class);
         $c['a.b'] = 'value'; // Should throw
@@ -342,11 +342,6 @@ final class ConfigTest extends TestCase
         self::assertEquals('first', $config[0]);
         self::assertEquals('second', $config[1]);
     }
-
-    // public function testWrapWithNull(): void
-    // {
-    //     self::assertEquals([], Config::wrap(null));
-    // }
 
     /**
      * @covers ::wrap

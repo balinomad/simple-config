@@ -34,7 +34,7 @@ class Config implements \ArrayAccess, \IteratorAggregate, \Countable
     private readonly int $cleaningFlags;
 
     /**
-     * @param null|array<string|int, mixed> $config        Configuration settings to start with.
+     * @param array<string|int, mixed>|null $config        Configuration settings to start with.
      * @param int                           $cleaningFlags A bitmask of cleaning options.
      */
     public function __construct(?array $config = null, int $cleaningFlags = self::CLEAN_NULLS)
@@ -151,12 +151,12 @@ class Config implements \ArrayAccess, \IteratorAggregate, \Countable
     /**
      * Merges another configuration, returning a new Config instance.
      *
-     * @param null|self|array<string, mixed> $config The configuration to merge
+     * @param self|array<string, mixed>|null $config The configuration to merge
      * @param int                            $method Merging strategy
      *
      * @return self A new Config instance containing the merged configuration
      */
-    public function merge(mixed $config, int $method = self::MERGE_REPLACE): self
+    public function merge(self|array|null $config, int $method = self::MERGE_REPLACE): self
     {
         $otherArray = ($config instanceof self)
             ? $config->toArray()
@@ -348,9 +348,8 @@ class Config implements \ArrayAccess, \IteratorAggregate, \Countable
      */
     private static function isAssoc(array $array): bool
     {
-        return $array !== [] && array_keys($array) !== range(0, count($array) - 1);
+        return $array !== [] && !array_is_list($array);
     }
-
 
     /**
      * Recursively sets a value in a nested array.
@@ -368,7 +367,7 @@ class Config implements \ArrayAccess, \IteratorAggregate, \Countable
             return $config;
         }
 
-        if (!empty($segments)) {
+        if ($segments !== []) {
             $subConfig = $config[$key] ?? [];
             $config[$key] = self::setValue(is_array($subConfig) ? $subConfig : [], $segments, $value);
         } else {
@@ -388,7 +387,7 @@ class Config implements \ArrayAccess, \IteratorAggregate, \Countable
      */
     private static function unsetValue(array $config, array $segments): array
     {
-        if (empty($segments) || empty($config)) {
+        if ($segments === [] || $config === []) {
             return $config;
         }
 
@@ -398,7 +397,7 @@ class Config implements \ArrayAccess, \IteratorAggregate, \Countable
             return $config;
         }
 
-        if (empty($segments)) {
+        if ($segments === []) {
             unset($config[$key]);
         } elseif (is_array($config[$key])) {
             $config[$key] = self::unsetValue($config[$key], $segments);
@@ -428,7 +427,7 @@ class Config implements \ArrayAccess, \IteratorAggregate, \Countable
 
             if (is_array($value)) {
                 $value = self::clean($value, $cleaningFlags);
-                if ($cleanEmpty && empty($value)) {
+                if ($cleanEmpty && $value === []) {
                     continue;
                 }
             }
@@ -492,7 +491,7 @@ class Config implements \ArrayAccess, \IteratorAggregate, \Countable
      */
     private static function parseKey(string $key): array
     {
-        return array_filter(explode('.', $key), fn($s) => $s !== '');
+        return array_filter(explode('.', $key), fn(string $segment): bool => $segment !== '');
     }
 
     /**
