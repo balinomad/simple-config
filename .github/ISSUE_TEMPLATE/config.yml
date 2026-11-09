@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security policy
+    url: https://github.com/balinomad/simple-config/security/policy
+    about: Report security vulnerabilities privately through GitHub.
