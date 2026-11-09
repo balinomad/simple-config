@@ -46,10 +46,9 @@ class Config implements \ArrayAccess, \IteratorAggregate, \Countable
     /**
      * Retrieves a configuration value using dot notation.
      *
-     * @param string $key     The dot notation key.
-     * @param mixed  $default The default value to return if the key is not found.
-     *
-     * @return mixed The value associated with the key or the default value.
+     * @param  string $key     The dot notation key.
+     * @param  mixed  $default The default value to return if the key is not found.
+     * @return mixed  The value associated with the key or the default value.
      */
     public function get(string $key, mixed $default = null): mixed
     {
@@ -69,24 +68,23 @@ class Config implements \ArrayAccess, \IteratorAggregate, \Countable
     /**
      * Checks if a key exists.
      *
-     * @param string $key Dot notation key
-     *
-     * @return bool True if the key exists, false otherwise
+     * @param  string $key Dot notation key
+     * @return bool   True if the key exists, false otherwise
      */
     public function has(string $key): bool
     {
         // Use a unique marker to distinguish between a null value and a non-existent key
         $marker = new \stdClass();
+
         return $this->get($key, $marker) !== $marker;
     }
 
     /**
      * Returns a new Config instance with a value set or updated.
      *
-     * @param string $key   Dot notation key
-     * @param mixed  $value The value to set
-     *
-     * @return self A new Config instance containing the updated configuration
+     * @param  string $key   Dot notation key
+     * @param  mixed  $value The value to set
+     * @return self   A new Config instance containing the updated configuration
      */
     public function with(string $key, mixed $value): self
     {
@@ -94,34 +92,35 @@ class Config implements \ArrayAccess, \IteratorAggregate, \Countable
             return $this->without($key);
         }
         $newConfig = self::setValue($this->config, self::parseKey($key), $value);
+
         return new self($newConfig, $this->cleaningFlags);
     }
 
     /**
      * Returns a new Config instance with a key removed.
      *
-     * @param string $key Dot notation key
-     *
-     * @return self A new Config instance containing the updated configuration
+     * @param  string $key Dot notation key
+     * @return self   A new Config instance containing the updated configuration
      */
     public function without(string $key): self
     {
         $newConfig = self::unsetValue($this->config, self::parseKey($key));
+
         return new self($newConfig, $this->cleaningFlags);
     }
 
     /**
      * Appends value(s) to an array at the specified key.
      *
-     * @param string $key   Dot notation key
-     * @param mixed  $value Value or values to append
-     *
+     * @param  string $key   Dot notation key
+     * @param  mixed  $value Value or values to append
      * @return self
      */
     public function append(string $key, mixed $value): self
     {
         $original = $this->get($key, []);
         $newValue = array_merge(self::wrap($original), self::wrap($value));
+
         return $this->with($key, $newValue);
     }
 
@@ -130,9 +129,8 @@ class Config implements \ArrayAccess, \IteratorAggregate, \Countable
      *
      * Values are compared strictly: both the type and the value must match.
      *
-     * @param string $key   Dot notation key
-     * @param mixed  $value Value to remove
-     *
+     * @param  string $key   Dot notation key
+     * @param  mixed  $value Value to remove
      * @return self
      */
     public function subtract(string $key, mixed $value): self
@@ -145,7 +143,7 @@ class Config implements \ArrayAccess, \IteratorAggregate, \Countable
         $toRemove = self::wrap($value);
         $newValue = array_filter(
             $original,
-            static fn(mixed $item): bool => !in_array($item, $toRemove, true),
+            static fn (mixed $item): bool => !in_array($item, $toRemove, true),
         );
 
         if (!self::isAssoc($original)) {
@@ -158,10 +156,9 @@ class Config implements \ArrayAccess, \IteratorAggregate, \Countable
     /**
      * Merges another configuration, returning a new Config instance.
      *
-     * @param self|array<string, mixed>|null $config The configuration to merge
-     * @param int                            $method Merging strategy
-     *
-     * @return self A new Config instance containing the merged configuration
+     * @param  self|array<string, mixed>|null $config The configuration to merge
+     * @param  int                            $method Merging strategy
+     * @return self                           A new Config instance containing the merged configuration
      */
     public function merge(self|array|null $config, int $method = self::MERGE_REPLACE): self
     {
@@ -169,20 +166,21 @@ class Config implements \ArrayAccess, \IteratorAggregate, \Countable
             ? $config->toArray()
             : ($config ?? []);
         $merged = self::mergeArrays($this->config, $otherArray, $method);
+
         return new self($merged, $this->cleaningFlags);
     }
 
     /**
      * Returns a new Config instance for a specific key.
      *
-     * @param string $key Dot notation key
-     *
-     * @return self A new Config instance containing the split configuration
+     * @param  string $key Dot notation key
+     * @return self   A new Config instance containing the split configuration
      */
     public function split(string $key): self
     {
         $value = $this->get($key, []);
         $data = is_array($value) ? $value : [$value];
+
         return new self($data, $this->cleaningFlags);
     }
 
@@ -203,9 +201,8 @@ class Config implements \ArrayAccess, \IteratorAggregate, \Countable
      *
      * Sets a configuration value using dot notation.
      *
-     * @param string $key   Dot notation key
-     * @param mixed  $value Config item value
-     *
+     * @param  string $key   Dot notation key
+     * @param  mixed  $value Config item value
      * @return self
      */
     public function set(string $key, mixed $value): self
@@ -218,8 +215,7 @@ class Config implements \ArrayAccess, \IteratorAggregate, \Countable
      *
      * Removes a key using dot notation and cleans up empty parent arrays.
      *
-     * @param string $key Dot notation key
-     *
+     * @param  string $key Dot notation key
      * @return self
      */
     public function unset(string $key): self
@@ -253,25 +249,23 @@ class Config implements \ArrayAccess, \IteratorAggregate, \Countable
     /**
      * Checks if the specified offset exists.
      *
-     * @param string|int $offset The offset to check
-     *
-     * @return bool True if the offset exists, false otherwise
+     * @param  string|int $offset The offset to check
+     * @return bool       True if the offset exists, false otherwise
      */
     public function offsetExists(mixed $offset): bool
     {
-        return $this->has((string)$offset);
+        return $this->has((string) $offset);
     }
 
     /**
      * Retrieves the value at the specified offset.
      *
-     * @param string|int $offset The offset of the value to retrieve
-     *
-     * @return mixed The value associated with the given offset
+     * @param  string|int $offset The offset of the value to retrieve
+     * @return mixed      The value associated with the given offset
      */
     public function offsetGet(mixed $offset): mixed
     {
-        return $this->get((string)$offset);
+        return $this->get((string) $offset);
     }
 
     /**
@@ -331,8 +325,7 @@ class Config implements \ArrayAccess, \IteratorAggregate, \Countable
     /**
      * Wraps a value in an array unless it is already an array.
      *
-     * @param mixed $value The value to wrap
-     *
+     * @param  mixed                    $value The value to wrap
      * @return array<string|int, mixed> The wrapped array
      */
     private static function wrap(mixed $value): array
@@ -340,6 +333,7 @@ class Config implements \ArrayAccess, \IteratorAggregate, \Countable
         if ($value === null) {
             return [];
         }
+
         return is_array($value) ? $value : [$value];
     }
 
@@ -349,9 +343,8 @@ class Config implements \ArrayAccess, \IteratorAggregate, \Countable
      * Note that this function will return false if an array is empty. Meaning
      * empty arrays will be treated as if they are not associative arrays.
      *
-     * @param array<int|string, mixed> $array The array to check
-     *
-     * @return bool True if the array is associative, false otherwise
+     * @param  array<int|string, mixed> $array The array to check
+     * @return bool                     True if the array is associative, false otherwise
      */
     private static function isAssoc(array $array): bool
     {
@@ -361,10 +354,9 @@ class Config implements \ArrayAccess, \IteratorAggregate, \Countable
     /**
      * Recursively sets a value in a nested array.
      *
-     * @param array<string|int, mixed> $config The array to set the value in
-     * @param array<int, string>       $segments The segments of the key to set
-     * @param mixed                    $value   The value to set
-     *
+     * @param  array<string|int, mixed> $config   The array to set the value in
+     * @param  array<int, string>       $segments The segments of the key to set
+     * @param  mixed                    $value    The value to set
      * @return array<string|int, mixed> The updated array
      */
     private static function setValue(array $config, array $segments, mixed $value): array
@@ -387,9 +379,8 @@ class Config implements \ArrayAccess, \IteratorAggregate, \Countable
     /**
      * Recursively unsets a value from a nested array.
      *
-     * @param array<string|int, mixed> $config The array to unset the value from
-     * @param array<int, string>       $segments The segments of the key to unset
-     *
+     * @param  array<string|int, mixed> $config   The array to unset the value from
+     * @param  array<int, string>       $segments The segments of the key to unset
      * @return array<string|int, mixed> The updated array
      */
     private static function unsetValue(array $config, array $segments): array
@@ -416,9 +407,8 @@ class Config implements \ArrayAccess, \IteratorAggregate, \Countable
     /**
      * Recursively removes values from a given array based on cleaning flags.
      *
-     * @param array<string|int, mixed> $data The data array to clean
-     * @param int                      $cleaningFlags A bitmask of cleaning options
-     *
+     * @param  array<string|int, mixed> $data          The data array to clean
+     * @param  int                      $cleaningFlags A bitmask of cleaning options
      * @return array<string|int, mixed> The cleaned array
      */
     private static function clean(array $data, int $cleaningFlags): array
@@ -449,10 +439,9 @@ class Config implements \ArrayAccess, \IteratorAggregate, \Countable
      * Differentiates between associative arrays (which are merged recursively)
      * and list-style arrays (which are replaced or appended as a whole).
      *
-     * @param array<string|int, mixed> $base        The base array
-     * @param array<string|int, mixed> $replacement The replacement array
-     * @param int                      $method      Merging strategy (REPLACE, KEEP, or APPEND)
-     *
+     * @param  array<string|int, mixed> $base        The base array
+     * @param  array<string|int, mixed> $replacement The replacement array
+     * @param  int                      $method      Merging strategy (REPLACE, KEEP, or APPEND)
      * @return array<string|int, mixed> The merged array
      */
     private static function mergeArrays(array $base, array $replacement, int $method): array
@@ -492,21 +481,19 @@ class Config implements \ArrayAccess, \IteratorAggregate, \Countable
     /**
      * Parses a dot-notation key into segments.
      *
-     * @param string $key The dot-notation key
-     *
+     * @param  string             $key The dot-notation key
      * @return array<int, string> The key segments
      */
     private static function parseKey(string $key): array
     {
-        return array_filter(explode('.', $key), fn(string $segment): bool => $segment !== '');
+        return array_filter(explode('.', $key), fn (string $segment): bool => $segment !== '');
     }
 
     /**
      * Recursively counts leaf nodes in an array.
      *
-     * @param array<string|int, mixed> $data The data array to count
-     *
-     * @return int The number of leaf nodes
+     * @param  array<string|int, mixed> $data The data array to count
+     * @return int                      The number of leaf nodes
      */
     private static function countLeaves(array $data): int
     {
@@ -519,16 +506,16 @@ class Config implements \ArrayAccess, \IteratorAggregate, \Countable
                 $count++;
             }
         }
+
         return $count;
     }
 
     /**
      * Checks if both $a and $b are associative arrays.
      *
-     * @param mixed $a The first value to check
-     * @param mixed $b The second value to check
-     *
-     * @return bool True if both $a and $b are associative arrays, false otherwise
+     * @param  mixed $a The first value to check
+     * @param  mixed $b The second value to check
+     * @return bool  True if both $a and $b are associative arrays, false otherwise
      */
     private static function bothAreAssocArrays(mixed $a, mixed $b): bool
     {
@@ -540,10 +527,9 @@ class Config implements \ArrayAccess, \IteratorAggregate, \Countable
      *
      * $a must be a list, and $b must either not be an array, or be a list.
      *
-     * @param mixed $a The first value to check
-     * @param mixed $b The second value to check
-     *
-     * @return bool True if both $a and $b are lists, false otherwise
+     * @param  mixed $a The first value to check
+     * @param  mixed $b The second value to check
+     * @return bool  True if both $a and $b are lists, false otherwise
      */
     private static function bothAreLists(mixed $a, mixed $b): bool
     {
